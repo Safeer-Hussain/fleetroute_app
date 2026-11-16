@@ -39,7 +39,40 @@ class AppDatabase {
       path,
       version: AppConstants.databaseVersion,
       onCreate: _createDB,
+      onOpen: (db) async {
+        await _ensureHosTables(db);
+      },
     );
+  }
+
+  Future<void> _ensureHosTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS driver_hos_records (
+        driver_id TEXT PRIMARY KEY,
+        driver_name TEXT NOT NULL,
+        vehicle_id TEXT NOT NULL,
+        current_status TEXT NOT NULL,
+        driving_seconds INTEGER NOT NULL,
+        on_duty_seconds INTEGER NOT NULL,
+        seconds_until_break INTEGER NOT NULL,
+        break_duration_seconds INTEGER NOT NULL,
+        last_status_change TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS rest_stops (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        highway TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        amenities TEXT NOT NULL,
+        available_truck_bays INTEGER NOT NULL
+      )
+    ''');
+
+    await _seedHosData(db);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -131,6 +164,7 @@ class AppDatabase {
       )
     ''');
 
+    await _ensureHosTables(db);
     await seedInitialData(db);
   }
 
@@ -598,6 +632,121 @@ class AppDatabase {
       'content': 'FleetRoute On-Device AI Dispatch Copilot initialized. All 12 fleet telematics streams, cold-chain monitors, and OBD-II CAN-bus interfaces are online. How can I assist dispatch operations today?',
       'timestamp': '2026-11-14 14:00:00',
     });
+
+    await _seedHosData(db);
+  }
+
+  Future<void> _seedHosData(Database db) async {
+    final hosCount = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM driver_hos_records'),
+    );
+    if (hosCount == null || hosCount == 0) {
+      final initialHosRecords = [
+        {
+          'driver_id': 'DRV-101',
+          'driver_name': 'Tariq Mehmood',
+          'vehicle_id': 'VH-101',
+          'current_status': 'DRIVING',
+          'driving_seconds': 24300, // 6h 45m
+          'on_duty_seconds': 27000, // 7h 30m
+          'seconds_until_break': 4500, // 1h 15m remaining
+          'break_duration_seconds': 0,
+          'last_status_change': '2026-11-16 06:00:00',
+        },
+        {
+          'driver_id': 'DRV-102',
+          'driver_name': 'Rashid Qureshi',
+          'vehicle_id': 'VH-102',
+          'current_status': 'DRIVING',
+          'driving_seconds': 36900, // 10h 15m
+          'on_duty_seconds': 41400, // 11h 30m
+          'seconds_until_break': 1800, // 30m remaining
+          'break_duration_seconds': 0,
+          'last_status_change': '2026-11-16 04:30:00',
+        },
+        {
+          'driver_id': 'DRV-103',
+          'driver_name': 'Zahid Bilal',
+          'vehicle_id': 'VH-103',
+          'current_status': 'ON_DUTY',
+          'driving_seconds': 12000, // 3h 20m
+          'on_duty_seconds': 18000, // 5h 00m
+          'seconds_until_break': 16800, // 4h 40m remaining
+          'break_duration_seconds': 0,
+          'last_status_change': '2026-11-16 08:00:00',
+        },
+      ];
+
+      for (final rec in initialHosRecords) {
+        await db.insert(
+          'driver_hos_records',
+          rec,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
+
+    final restStopsCount = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM rest_stops'),
+    );
+    if (restStopsCount == null || restStopsCount == 0) {
+      final initialRestStops = [
+        {
+          'id': 'RS-001',
+          'name': 'M-2 Sukheke Service Area & Freight Rest Plaza',
+          'highway': 'M-2 Motorway Km 87',
+          'latitude': 31.8670,
+          'longitude': 73.5120,
+          'amenities': 'Diesel High-Flow,Secure Truck Parking,Driver Showers,Diner,Weigh Station',
+          'available_truck_bays': 34,
+        },
+        {
+          'id': 'RS-002',
+          'name': 'M-2 Sial Rest Area & Heavy Vehicle Terminal',
+          'highway': 'M-2 Motorway Km 132',
+          'latitude': 32.1480,
+          'longitude': 73.1250,
+          'amenities': 'Diesel High-Flow,Truck Tire Repair,Mosque,Rest Cabins,24/7 Canteen',
+          'available_truck_bays': 28,
+        },
+        {
+          'id': 'RS-003',
+          'name': 'N-5 Gujranwala Freight Logistics Oasis',
+          'highway': 'Grand Trunk Road (N-5) Km 65',
+          'latitude': 32.1877,
+          'longitude': 74.1945,
+          'amenities':
+              'OBD Diagnostics Bay,High-Flow Diesel,Driver Lounge,Truck Wash',
+          'available_truck_bays': 19,
+        },
+        {
+          'id': 'RS-004',
+          'name': 'Lahore Ring Road Southern Bypass Freight Oasis',
+          'highway': 'L-20 Ring Road Km 24',
+          'latitude': 31.4120,
+          'longitude': 74.2250,
+          'amenities': 'Reefer Plug-in Bays,Cold-Chain Inspection,Weigh-in-Motion,Security Patrol',
+          'available_truck_bays': 42,
+        },
+        {
+          'id': 'RS-005',
+          'name': 'M-3 Abdul Hakeem Logistics Terminal',
+          'highway': 'M-3 Motorway Km 45',
+          'latitude': 31.5540,
+          'longitude': 73.7210,
+          'amenities': 'Diesel High-Flow,EV Megawatt Charging,Driver Showers,24/7 Cafeteria',
+          'available_truck_bays': 25,
+        },
+      ];
+
+      for (final rs in initialRestStops) {
+        await db.insert(
+          'rest_stops',
+          rs,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
   }
 
   Future<void> close() async {

@@ -9,6 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'presentation/ai_copilot/cubit/ai_dispatch_cubit.dart';
 import 'presentation/connectivity/connectivity_cubit.dart';
 import 'presentation/epod/bloc/epod_bloc.dart';
+import 'presentation/hos/cubit/driver_hos_cubit.dart';
 import 'presentation/map_command/bloc/fleet_map_bloc.dart';
 import 'presentation/obd_diagnostics/bloc/obd_diagnostics_bloc.dart';
 import 'presentation/route_optimizer/bloc/route_optimizer_bloc.dart';
@@ -65,6 +66,7 @@ class FleetRouteApp extends StatelessWidget {
           create: (_) => di.sl<ObdDiagnosticsBloc>(),
         ),
         BlocProvider<AiDispatchCubit>(create: (_) => di.sl<AiDispatchCubit>()),
+        BlocProvider<DriverHosCubit>(create: (_) => di.sl<DriverHosCubit>()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {

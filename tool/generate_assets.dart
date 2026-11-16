@@ -19,8 +19,9 @@ void main() {
       // Outer squircle or rounded container
       final dx = (x - cx).abs();
       final dy = (y - cy).abs();
-      if (dx > 230 || dy > 230)
+      if (dx > 230 || dy > 230) {
         return [15, 23, 42, 0]; // transparent outside icon frame
+      }
       if (dx > 210 &&
           dy > 210 &&
           sqrt(pow(dx - 210, 2) + pow(dy - 210, 2)) > 20) {
@@ -142,8 +143,9 @@ void main() {
       // Sleek EV aerodynamic body: x from 110 to 420, y from 130 to 240
       if (x >= 110 && x <= 420 && y >= 130 && y <= 240) {
         // Battery glow bar on chassis
-        if (y >= 225 && y <= 235)
+        if (y >= 225 && y <= 235) {
           return [16, 185, 129, 255]; // Green EV battery glow
+        }
         // EV windshield
         if (x >= 340 && x <= 410 && y >= 135 && y <= 175) {
           return [224, 242, 254, 255];

@@ -10,11 +10,13 @@ import '../../domain/repositories/route_repository.dart';
 import '../../domain/repositories/epod_repository.dart';
 import '../../domain/repositories/obd_repository.dart';
 import '../../domain/repositories/ai_copilot_repository.dart';
+import '../../domain/repositories/hos_repository.dart';
 import '../../data/repositories/fleet_repository_impl.dart';
 import '../../data/repositories/route_repository_impl.dart';
 import '../../data/repositories/epod_repository_impl.dart';
 import '../../data/repositories/obd_repository_impl.dart';
 import '../../data/repositories/ai_copilot_repository_impl.dart';
+import '../../data/repositories/hos_repository_impl.dart';
 import '../../presentation/theme/theme_cubit.dart';
 import '../../presentation/connectivity/connectivity_cubit.dart';
 import '../../presentation/map_command/bloc/fleet_map_bloc.dart';
@@ -22,6 +24,7 @@ import '../../presentation/route_optimizer/bloc/route_optimizer_bloc.dart';
 import '../../presentation/epod/bloc/epod_bloc.dart';
 import '../../presentation/obd_diagnostics/bloc/obd_diagnostics_bloc.dart';
 import '../../presentation/ai_copilot/cubit/ai_dispatch_cubit.dart';
+import '../../presentation/hos/cubit/driver_hos_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -65,6 +68,9 @@ Future<void> initDependencies({SharedPreferences? prefOverride}) async {
   sl.registerLazySingleton<AiCopilotRepository>(
     () => AiCopilotRepositoryImpl(database: sl()),
   );
+  sl.registerLazySingleton<HosRepository>(
+    () => HosRepositoryImpl(database: sl()),
+  );
 
   // Cubits & Blocs
   sl.registerLazySingleton<ThemeCubit>(
@@ -78,4 +84,5 @@ Future<void> initDependencies({SharedPreferences? prefOverride}) async {
   sl.registerFactory(() => EpodBloc(epodRepository: sl()));
   sl.registerFactory(() => ObdDiagnosticsBloc(obdRepository: sl()));
   sl.registerFactory(() => AiDispatchCubit(aiRepository: sl()));
+  sl.registerFactory(() => DriverHosCubit(hosRepository: sl()));
 }

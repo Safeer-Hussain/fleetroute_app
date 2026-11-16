@@ -9,6 +9,7 @@ import '../map_command/fleet_map_command_view.dart';
 import '../obd_diagnostics/obd_diagnostics_view.dart';
 import '../route_optimizer/route_optimizer_view.dart';
 import '../settings/settings_view.dart';
+import '../hos/driver_hos_view.dart';
 
 class AdaptiveScaffold extends StatefulWidget {
   const AdaptiveScaffold({super.key});
@@ -78,6 +79,15 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
             ),
           ),
           actions: [
+            IconButton(
+              icon: Icon(Icons.timer_outlined, size: isLandscape ? 18 : 20),
+              tooltip: 'Driver HOS Fatigue & Rest Timer',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DriverHosView()),
+                );
+              },
+            ),
             IconButton(
               icon: Icon(Icons.settings, size: isLandscape ? 18 : 20),
               tooltip: 'Settings & Recruiter Drawer',

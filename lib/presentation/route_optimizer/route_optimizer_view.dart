@@ -680,8 +680,9 @@ class _CreateRouteModalState extends State<_CreateRouteModal> {
                           return DropdownMenuItem(value: id, child: Text(id));
                         }).toList(),
                         onChanged: (val) {
-                          if (val != null)
+                          if (val != null) {
                             setState(() => _selectedVehicleId = val);
+                          }
                         },
                       ),
                     ),
@@ -694,10 +695,12 @@ class _CreateRouteModalState extends State<_CreateRouteModal> {
                           labelText: 'Cargo Weight (kg)',
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val) == null)
+                          }
+                          if (double.tryParse(val) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),

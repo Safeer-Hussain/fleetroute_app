@@ -11,6 +11,7 @@ import '../map_command/bloc/fleet_map_event.dart';
 import '../obd_diagnostics/bloc/obd_diagnostics_bloc.dart';
 import '../obd_diagnostics/bloc/obd_diagnostics_event.dart';
 import '../theme/theme_cubit.dart';
+import '../hos/driver_hos_view.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -93,6 +94,50 @@ class _SettingsViewState extends State<SettingsView> {
                 activeColor: colorScheme.primary,
                 onChanged: (_) {
                   themeCubit.toggleTheme();
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'DRIVER COMPLIANCE & SAFETY',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: colorScheme.outlineVariant),
+              ),
+              child: ListTile(
+                leading: Icon(Icons.timer_outlined, color: colorScheme.primary),
+                title: Text(
+                  'Driver Hours of Service (HOS) & Rest Plazas',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                subtitle: Text(
+                  'FMCSA 49 CFR § 395 Fatigue Tracking, 30-min break alerts, and nearest freight rest stops',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DriverHosView()),
+                  );
                 },
               ),
             ),

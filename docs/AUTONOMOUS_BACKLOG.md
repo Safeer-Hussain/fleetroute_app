@@ -6,10 +6,10 @@ Execute using the 6-phase autonomous sprint rule:
 
 ---
 
-- [ ] **Sprint 1: Driver HOS (Hours of Service) Fatigue & Rest Stop Timer**
+- [x] **Sprint 1: Driver HOS (Hours of Service) Fatigue & Rest Stop Timer**
   - *User Story*: As a long-haul freight driver, I need a visual HOS clock tracking driving hours (max 11h) and mandatory 30-min break alerts to stay compliant with federal transport regulations.
   - *Acceptance Criteria*: Countdown timer persisted to SQLite, visual amber/red warning states when approaching 8h and 11h thresholds, and nearest freight rest stop finder.
-  - *Test Matrix*: HOS unit tests validating clock decrement, state transitions (`DRIVING`, `ON_DUTY`, `SLEEPER_BERTH`, `OFF_DUTY`), and widget tests for the countdown gauge.
+  - *Test Matrix*: HOS unit tests validating clock decrement, state transitions (`DRIVING`, `ON_DUTY`, `SLEEPER_BERTH`, `OFF_DUTY`), and widget tests for the countdown gauge. (Passed 7 unit tests + 3 widget tests).
 
 - [ ] **Sprint 2: Toll & Border Customs Fee Estimator**
   - *User Story*: As a dispatch accountant, I need automated highway toll fee and provincial border clearance fee calculation for any planned dispatch route.
