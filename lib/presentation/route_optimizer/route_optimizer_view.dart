@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/utils/app_feedback.dart';
 import '../../domain/entities/route_plan.dart';
 import '../../domain/entities/waybill_stop.dart';
+import '../toll/cubit/toll_estimator_cubit.dart';
+import '../toll/cubit/toll_estimator_state.dart';
+import '../toll/toll_breakdown_sheet.dart';
 import 'bloc/route_optimizer_bloc.dart';
 import 'bloc/route_optimizer_event.dart';
 import 'bloc/route_optimizer_state.dart';
@@ -59,6 +62,12 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
         if (state.statusMessage != null) {
           AppFeedback.showSuccess(context, state.statusMessage!);
         }
+        if (state.selectedRoute != null) {
+          context.read<TollEstimatorCubit>().calculateEstimate(
+            route: state.selectedRoute!,
+            stops: state.stops,
+          );
+        }
       },
       builder: (context, state) {
         if (state.isLoading && state.routes.isEmpty) {
@@ -93,13 +102,21 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
                           children: [
                             _buildRouteSelector(context, state, colorScheme),
                             const SizedBox(height: 12),
-                            if (selected != null)
+                            if (selected != null) ...[
                               _buildRouteMetricsCard(
                                 context,
                                 selected,
                                 state,
                                 colorScheme,
                               ),
+                              const SizedBox(height: 12),
+                              _buildTollSummaryCard(
+                                context,
+                                selected,
+                                state,
+                                colorScheme,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -138,6 +155,13 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
                       const SizedBox(height: 12),
                       if (selected != null) ...[
                         _buildRouteMetricsCard(
+                          context,
+                          selected,
+                          state,
+                          colorScheme,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTollSummaryCard(
                           context,
                           selected,
                           state,
@@ -337,6 +361,174 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTollSummaryCard(
+    BuildContext context,
+    RoutePlan route,
+    RouteOptimizerState state,
+    ColorScheme colorScheme,
+  ) {
+    return BlocBuilder<TollEstimatorCubit, TollEstimatorState>(
+      builder: (context, tollState) {
+        if (tollState.status == TollEstimatorStatus.initial) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              context.read<TollEstimatorCubit>().calculateEstimate(
+                route: route,
+                stops: state.stops,
+              );
+            }
+          });
+        }
+
+        final estimate = tollState.estimate;
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.toll, color: colorScheme.primary, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Highway Toll & Customs Fees',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      tollState.selectedAxleTier.shortLabel,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (tollState.status == TollEstimatorStatus.loading)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                )
+              else if (estimate != null) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Estimated Net Toll Fee',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          estimate.formattedTotalFee,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${estimate.crossings.length} Plaza${estimate.crossings.length == 1 ? '' : 's'} Detected',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        if (estimate.totalElectronicDiscounts > 0)
+                          Text(
+                            'Saved ${estimate.formattedDiscounts} (M-Tag)',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.secondary,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.receipt_long, size: 16),
+                    label: const Text(
+                      'View Itemized Toll Breakdown',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.primary,
+                      side: BorderSide(color: colorScheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    onPressed: () => TollBreakdownSheet.show(context),
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  'No toll plazas detected along this corridor.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 

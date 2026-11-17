@@ -11,10 +11,10 @@ Execute using the 6-phase autonomous sprint rule:
   - *Acceptance Criteria*: Countdown timer persisted to SQLite, visual amber/red warning states when approaching 8h and 11h thresholds, and nearest freight rest stop finder.
   - *Test Matrix*: HOS unit tests validating clock decrement, state transitions (`DRIVING`, `ON_DUTY`, `SLEEPER_BERTH`, `OFF_DUTY`), and widget tests for the countdown gauge. (Passed 7 unit tests + 3 widget tests).
 
-- [ ] **Sprint 2: Toll & Border Customs Fee Estimator**
+- [x] **Sprint 2: Toll & Border Customs Fee Estimator**
   - *User Story*: As a dispatch accountant, I need automated highway toll fee and provincial border clearance fee calculation for any planned dispatch route.
   - *Acceptance Criteria*: Spatial highway toll barrier geocoding, vehicle axle-based fee lookup (2-axle vs 4-axle semi), total toll fee summarized on route detail card.
-  - *Test Matrix*: Fee calculation unit tests across axle tiers and border crossing nodes.
+  - *Test Matrix*: Fee calculation unit tests across axle tiers and border crossing nodes. (Passed 8 unit tests + 3 widget tests).
 
 - [ ] **Sprint 3: Cold-Chain Temperature Excursion Alert Log & Audit Exporter**
   - *User Story*: As a pharmaceutical quality assurance auditor, I need an automated excursion audit report capturing any time reefer temperature exceeds -15°C for more than 5 minutes.

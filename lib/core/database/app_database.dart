@@ -41,6 +41,7 @@ class AppDatabase {
       onCreate: _createDB,
       onOpen: (db) async {
         await _ensureHosTables(db);
+        await _ensureTollTables(db);
       },
     );
   }
@@ -73,6 +74,148 @@ class AppDatabase {
     ''');
 
     await _seedHosData(db);
+  }
+
+  Future<void> _ensureTollTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS toll_barriers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        highway TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        barrier_type TEXT NOT NULL,
+        fee_two_axle REAL NOT NULL,
+        fee_three_axle REAL NOT NULL,
+        fee_four_axle_plus REAL NOT NULL,
+        customs_clearance_fee REAL NOT NULL,
+        accepts_electronic_toll INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS route_toll_estimates (
+        route_id TEXT PRIMARY KEY,
+        axle_tier TEXT NOT NULL,
+        total_toll_fees REAL NOT NULL,
+        total_customs_fees REAL NOT NULL,
+        total_discounts REAL NOT NULL,
+        net_total_fee REAL NOT NULL,
+        barriers_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await _seedTollData(db);
+  }
+
+  Future<void> _seedTollData(Database db) async {
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM toll_barriers'),
+    );
+    if (count == null || count == 0) {
+      final initialTollBarriers = [
+        {
+          'id': 'TB-001',
+          'name': 'M-2 Ravi Main Toll Plaza',
+          'highway': 'M-2 Motorway Km 0',
+          'latitude': 31.6020,
+          'longitude': 74.2750,
+          'barrier_type': 'HIGHWAY_TOLL',
+          'fee_two_axle': 240.0,
+          'fee_three_axle': 480.0,
+          'fee_four_axle_plus': 950.0,
+          'customs_clearance_fee': 0.0,
+          'accepts_electronic_toll': 1,
+        },
+        {
+          'id': 'TB-002',
+          'name': 'M-2 Sukheke Express Toll Barrier',
+          'highway': 'M-2 Motorway Km 87',
+          'latitude': 31.8690,
+          'longitude': 73.5150,
+          'barrier_type': 'HIGHWAY_TOLL',
+          'fee_two_axle': 280.0,
+          'fee_three_axle': 520.0,
+          'fee_four_axle_plus': 1050.0,
+          'customs_clearance_fee': 0.0,
+          'accepts_electronic_toll': 1,
+        },
+        {
+          'id': 'TB-003',
+          'name': 'N-5 Kala Shah Kaku Toll Terminal',
+          'highway': 'Grand Trunk Road (N-5) Km 19',
+          'latitude': 31.7250,
+          'longitude': 74.2670,
+          'barrier_type': 'HIGHWAY_TOLL',
+          'fee_two_axle': 150.0,
+          'fee_three_axle': 300.0,
+          'fee_four_axle_plus': 600.0,
+          'customs_clearance_fee': 0.0,
+          'accepts_electronic_toll': 1,
+        },
+        {
+          'id': 'TB-004',
+          'name': 'Lahore Ring Road Southern Toll Barrier',
+          'highway': 'L-20 Ring Road Km 12',
+          'latitude': 31.4280,
+          'longitude': 74.2380,
+          'barrier_type': 'HIGHWAY_TOLL',
+          'fee_two_axle': 120.0,
+          'fee_three_axle': 250.0,
+          'fee_four_axle_plus': 500.0,
+          'customs_clearance_fee': 0.0,
+          'accepts_electronic_toll': 1,
+        },
+        {
+          'id': 'TB-005',
+          'name': 'M-3 Sheikhupura Interchange Toll Gate',
+          'highway': 'M-3 Motorway Km 32',
+          'latitude': 31.7100,
+          'longitude': 73.9800,
+          'barrier_type': 'HIGHWAY_TOLL',
+          'fee_two_axle': 210.0,
+          'fee_three_axle': 420.0,
+          'fee_four_axle_plus': 850.0,
+          'customs_clearance_fee': 0.0,
+          'accepts_electronic_toll': 1,
+        },
+        {
+          'id': 'TB-006',
+          'name': 'Punjab-KP Provincial Border Customs Post',
+          'highway': 'N-5 Attock Khairabad Bridge',
+          'latitude': 33.8990,
+          'longitude': 72.2410,
+          'barrier_type': 'BORDER_CUSTOMS',
+          'fee_two_axle': 300.0,
+          'fee_three_axle': 600.0,
+          'fee_four_axle_plus': 1200.0,
+          'customs_clearance_fee': 1500.0,
+          'accepts_electronic_toll': 1,
+        },
+        {
+          'id': 'TB-007',
+          'name': 'Sundar Industrial Estate Customs Clearance Node',
+          'highway': 'Multan Road Km 38',
+          'latitude': 31.2880,
+          'longitude': 74.1820,
+          'barrier_type': 'BORDER_CUSTOMS',
+          'fee_two_axle': 200.0,
+          'fee_three_axle': 400.0,
+          'fee_four_axle_plus': 800.0,
+          'customs_clearance_fee': 1250.0,
+          'accepts_electronic_toll': 1,
+        },
+      ];
+
+      for (final tb in initialTollBarriers) {
+        await db.insert(
+          'toll_barriers',
+          tb,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -165,6 +308,7 @@ class AppDatabase {
     ''');
 
     await _ensureHosTables(db);
+    await _ensureTollTables(db);
     await seedInitialData(db);
   }
 

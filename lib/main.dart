@@ -15,6 +15,7 @@ import 'presentation/obd_diagnostics/bloc/obd_diagnostics_bloc.dart';
 import 'presentation/route_optimizer/bloc/route_optimizer_bloc.dart';
 import 'presentation/splash/splash_view.dart';
 import 'presentation/theme/theme_cubit.dart';
+import 'presentation/toll/cubit/toll_estimator_cubit.dart';
 
 void main() {
   runZonedGuarded(
@@ -67,6 +68,9 @@ class FleetRouteApp extends StatelessWidget {
         ),
         BlocProvider<AiDispatchCubit>(create: (_) => di.sl<AiDispatchCubit>()),
         BlocProvider<DriverHosCubit>(create: (_) => di.sl<DriverHosCubit>()),
+        BlocProvider<TollEstimatorCubit>(
+          create: (_) => di.sl<TollEstimatorCubit>(),
+        ),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {
