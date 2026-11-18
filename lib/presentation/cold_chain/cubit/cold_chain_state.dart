@@ -2,87 +2,73 @@ import 'package:equatable/equatable.dart';
 
 import '../../../domain/entities/temperature_excursion.dart';
 
-enum ColdChainFilter {
-  all,
-  breachesOnly,
-  unresolvedOnly;
+enum ColdChainStatus { initial, loading, loaded, error }
 
-  String get displayName {
-    switch (this) {
-      case ColdChainFilter.all:
-        return 'All Excursions';
-      case ColdChainFilter.breachesOnly:
-        return 'Critical Breaches (>5m)';
-      case ColdChainFilter.unresolvedOnly:
-        return 'Unresolved / Active';
-    }
-  }
-}
+enum ColdChainFilter { all, activeBreaches, resolved }
 
 class ColdChainState extends Equatable {
-  final List<TemperatureExcursion> allExcursions;
+  final ColdChainStatus status;
+  final List<TemperatureExcursion> excursions;
+  final Map<String, dynamic> metrics;
   final ColdChainFilter filter;
-  final bool isLoading;
-  final String? statusMessage;
-  final String? errorMessage;
   final String? exportedCsv;
+  final String? errorMessage;
+  final String? successMessage;
 
   const ColdChainState({
-    this.allExcursions = const [],
+    this.status = ColdChainStatus.initial,
+    this.excursions = const [],
+    this.metrics = const {},
     this.filter = ColdChainFilter.all,
-    this.isLoading = false,
-    this.statusMessage,
-    this.errorMessage,
     this.exportedCsv,
+    this.errorMessage,
+    this.successMessage,
   });
 
   List<TemperatureExcursion> get filteredExcursions {
     switch (filter) {
-      case ColdChainFilter.breachesOnly:
-        return allExcursions.where((e) => e.isAuditableBreach).toList();
-      case ColdChainFilter.unresolvedOnly:
-        return allExcursions.where((e) => !e.isResolved).toList();
+      case ColdChainFilter.activeBreaches:
+        return excursions
+            .where((e) => e.isActive || e.isThresholdBreached)
+            .toList();
+      case ColdChainFilter.resolved:
+        return excursions.where((e) => !e.isActive).toList();
       case ColdChainFilter.all:
-        return allExcursions;
+        return excursions;
     }
   }
 
-  int get totalExcursions => allExcursions.length;
-  int get criticalBreachCount =>
-      allExcursions.where((e) => e.isAuditableBreach).length;
-  int get compliantTransientCount =>
-      allExcursions.where((e) => !e.isAuditableBreach).length;
-  int get unresolvedCount => allExcursions.where((e) => !e.isResolved).length;
-
   ColdChainState copyWith({
-    List<TemperatureExcursion>? allExcursions,
+    ColdChainStatus? status,
+    List<TemperatureExcursion>? excursions,
+    Map<String, dynamic>? metrics,
     ColdChainFilter? filter,
-    bool? isLoading,
-    String? statusMessage,
-    String? errorMessage,
     String? exportedCsv,
-    bool clearStatusMessage = false,
-    bool clearExportedCsv = false,
+    String? errorMessage,
+    String? successMessage,
+    bool clearSuccessMessage = false,
   }) {
     return ColdChainState(
-      allExcursions: allExcursions ?? this.allExcursions,
+      status: status ?? this.status,
+      excursions: excursions ?? this.excursions,
+      metrics: metrics ?? this.metrics,
       filter: filter ?? this.filter,
-      isLoading: isLoading ?? this.isLoading,
-      statusMessage: clearStatusMessage
-          ? null
-          : (statusMessage ?? this.statusMessage),
+      exportedCsv: exportedCsv ?? this.exportedCsv,
       errorMessage: errorMessage,
-      exportedCsv: clearExportedCsv ? null : (exportedCsv ?? this.exportedCsv),
+      successMessage: clearSuccessMessage
+          ? null
+          : (successMessage ?? this.successMessage),
     );
   }
 
   @override
   List<Object?> get props => [
-    allExcursions,
+    status,
+    excursions,
+    metrics,
     filter,
-    isLoading,
-    statusMessage,
-    errorMessage,
     exportedCsv,
+    errorMessage,
+    successMessage,
   ];
 }

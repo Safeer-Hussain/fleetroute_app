@@ -1,34 +1,31 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../domain/entities/vehicle.dart';
 import '../../../domain/repositories/cold_chain_repository.dart';
 import 'cold_chain_state.dart';
 
 class ColdChainCubit extends Cubit<ColdChainState> {
   final ColdChainRepository coldChainRepository;
-  StreamSubscription? _subscription;
 
   ColdChainCubit({required this.coldChainRepository})
-    : super(const ColdChainState()) {
-    _subscription = coldChainRepository.watchExcursions().listen((list) {
-      emit(state.copyWith(allExcursions: list));
-    });
-  }
+    : super(const ColdChainState());
 
-  Future<void> loadExcursions({String? vehicleId}) async {
-    emit(state.copyWith(isLoading: true));
+  Future<void> loadExcursions() async {
+    emit(state.copyWith(status: ColdChainStatus.loading));
     try {
-      final list = await coldChainRepository.getExcursions(
-        vehicleId: vehicleId,
+      final list = await coldChainRepository.getExcursions();
+      final metrics = await coldChainRepository.getColdChainAuditMetrics();
+      emit(
+        state.copyWith(
+          status: ColdChainStatus.loaded,
+          excursions: list,
+          metrics: metrics,
+        ),
       );
-      emit(state.copyWith(isLoading: false, allExcursions: list));
     } catch (e) {
       emit(
         state.copyWith(
-          isLoading: false,
-          errorMessage: 'Failed to load temperature excursions: $e',
+          status: ColdChainStatus.error,
+          errorMessage: 'Failed to load cold-chain excursions: $e',
         ),
       );
     }
@@ -40,21 +37,21 @@ class ColdChainCubit extends Cubit<ColdChainState> {
 
   Future<void> acknowledgeExcursion({
     required String excursionId,
-    required String auditorName,
-    required String notes,
+    required String auditorNotes,
   }) async {
     try {
       await coldChainRepository.acknowledgeExcursion(
         excursionId: excursionId,
-        auditorName: auditorName,
-        notes: notes,
+        auditorNotes: auditorNotes,
       );
-      final updated = await coldChainRepository.getExcursions();
+      final list = await coldChainRepository.getExcursions();
+      final metrics = await coldChainRepository.getColdChainAuditMetrics();
       emit(
         state.copyWith(
-          allExcursions: updated,
-          statusMessage:
-              'Excursion $excursionId signed and archived by $auditorName.',
+          excursions: list,
+          metrics: metrics,
+          successMessage:
+              'Excursion $excursionId acknowledged with audit note.',
         ),
       );
     } catch (e) {
@@ -70,30 +67,32 @@ class ColdChainCubit extends Cubit<ColdChainState> {
       emit(
         state.copyWith(
           exportedCsv: csv,
-          statusMessage:
-              'QA Audit CSV generated (${state.allExcursions.length} records).',
+          successMessage: 'GDP Cold-Chain Audit Report exported successfully.',
         ),
       );
       return csv;
     } catch (e) {
-      emit(state.copyWith(errorMessage: 'Failed to export audit report: $e'));
-      return '';
+      emit(state.copyWith(errorMessage: 'Failed to export audit CSV: $e'));
+      rethrow;
     }
   }
 
-  Future<void> simulateTemperatureReading({
-    required Vehicle vehicle,
-    required double tempCelsius,
-    required DateTime timestamp,
+  Future<void> recordReading({
+    required String vehicleId,
+    required String vehicleName,
+    required String routeId,
+    required double tempC,
+    DateTime? timestamp,
   }) async {
     try {
-      await coldChainRepository.recordTelemetryTick(
-        vehicle: vehicle,
-        currentTempC: tempCelsius,
-        timestamp: timestamp,
+      await coldChainRepository.recordTemperatureReading(
+        vehicleId: vehicleId,
+        vehicleName: vehicleName,
+        routeId: routeId,
+        tempC: tempC,
+        timestamp: timestamp ?? DateTime.now(),
       );
-      final list = await coldChainRepository.getExcursions();
-      emit(state.copyWith(allExcursions: list));
+      await loadExcursions();
     } catch (e) {
       emit(
         state.copyWith(
@@ -101,15 +100,5 @@ class ColdChainCubit extends Cubit<ColdChainState> {
         ),
       );
     }
-  }
-
-  void clearStatus() {
-    emit(state.copyWith(clearStatusMessage: true, clearExportedCsv: true));
-  }
-
-  @override
-  Future<void> close() {
-    _subscription?.cancel();
-    return super.close();
   }
 }

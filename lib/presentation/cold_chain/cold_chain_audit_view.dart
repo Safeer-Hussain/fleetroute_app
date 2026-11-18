@@ -12,6 +12,11 @@ class ColdChainAuditView extends StatefulWidget {
 
   const ColdChainAuditView({super.key, this.cubit});
 
+  static Future<void> show(BuildContext context) {
+    return Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ColdChainAuditView()));
+  }
+
   @override
   State<ColdChainAuditView> createState() => _ColdChainAuditViewState();
 }
@@ -29,80 +34,54 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
     TemperatureExcursion excursion,
     ColorScheme colorScheme,
   ) {
-    final nameController = TextEditingController(text: 'Dr. QA Auditor');
-    final notesController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
+    final textController = TextEditingController();
     showDialog(
       context: context,
       builder: (dialogCtx) {
         return AlertDialog(
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+          backgroundColor: colorScheme.surfaceContainer,
+          title: Text(
+            'Acknowledge Excursion ${excursion.id}',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
           ),
-          title: Row(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.verified_user, color: colorScheme.primary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Auditor Excursion Sign-Off',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
+              Text(
+                'Vehicle: ${excursion.vehicleName} (${excursion.vehicleId})',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Recorded Peak: ${excursion.formattedTemp} (Threshold: ${excursion.formattedThreshold})',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                maxLines: 3,
+                style: TextStyle(fontSize: 12, color: colorScheme.onSurface),
+                decoration: InputDecoration(
+                  labelText: 'Corrective Action & Auditor Notes',
+                  hintText: 'Enter reefer inspection details, driver notes, or salvage log...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
-          ),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Excursion ID: ${excursion.id} (${excursion.vehicleName})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Auditor Full Name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      prefixIcon: const Icon(Icons.person, size: 18),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: notesController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Corrective Action & Root Cause Notes',
-                      hintText: 'e.g. Reefer compressor reset; cargo integrity verified.',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
-                ],
-              ),
-            ),
           ),
           actions: [
             TextButton(
@@ -112,24 +91,27 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
             ),
-            FilledButton.icon(
-              icon: const Icon(Icons.check, size: 16),
-              label: const Text('Sign & Archive'),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+              ),
               onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  final cubit = widget.cubit ?? context.read<ColdChainCubit>();
-                  cubit.acknowledgeExcursion(
-                    excursionId: excursion.id,
-                    auditorName: nameController.text.trim(),
-                    notes: notesController.text.trim(),
-                  );
-                  Navigator.of(dialogCtx).pop();
-                  AppFeedback.showSuccess(
-                    context,
-                    'Audit log signed and certified by ${nameController.text.trim()}.',
-                  );
-                }
+                final notes = textController.text.trim().isEmpty
+                    ? 'Auditor reviewed and verified reefer operation.'
+                    : textController.text.trim();
+                final cubit = widget.cubit ?? context.read<ColdChainCubit>();
+                cubit.acknowledgeExcursion(
+                  excursionId: excursion.id,
+                  auditorNotes: notes,
+                );
+                Navigator.of(dialogCtx).pop();
+                AppFeedback.showSuccess(
+                  context,
+                  'Excursion ${excursion.id} acknowledged.',
+                );
               },
+              child: const Text('Confirm Acknowledgment'),
             ),
           ],
         );
@@ -137,104 +119,105 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
     );
   }
 
-  void _showExportSheet(
+  void _showCsvExportModal(
     BuildContext context,
-    String csvContent,
+    String csvData,
     ColorScheme colorScheme,
   ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: colorScheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (sheetCtx) {
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetCtx).size.height * 0.75,
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.description,
-                            color: colorScheme.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
                           Text(
-                            'Pharma QA Excursion Audit CSV',
+                            'Pharma GDP Excursion Audit Export',
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'RFC 4180 CSV Standard Format',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(sheetCtx).pop(),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Compliant with WHO/FDA Good Distribution Practice (GDP) Annex 5 Standards.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: colorScheme.onSurfaceVariant,
                       ),
-                      child: SingleChildScrollView(
-                        child: SelectableText(
-                          csvContent,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            color: colorScheme.onSurface,
-                          ),
+                      onPressed: () => Navigator.of(sheetCtx).pop(),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        csvData,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Copy CSV Manifest to Clipboard'),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: csvContent));
-                      Navigator.of(sheetCtx).pop();
-                      AppFeedback.showSuccess(
-                        context,
-                        'Excursion Audit CSV copied to clipboard.',
-                      );
-                    },
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                   ),
-                ],
-              ),
+                  icon: const Icon(Icons.copy, size: 16),
+                  label: const Text('Copy CSV Manifest to Clipboard'),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: csvData));
+                    Navigator.of(sheetCtx).pop();
+                    AppFeedback.showSuccess(
+                      context,
+                      'GDP Excursion Audit CSV copied to clipboard.',
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         );
@@ -249,32 +232,51 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    final cubit = widget.cubit ?? context.read<ColdChainCubit>();
-
-    return BlocConsumer<ColdChainCubit, ColdChainState>(
-      bloc: cubit,
+    final content = BlocConsumer<ColdChainCubit, ColdChainState>(
       listener: (context, state) {
         if (state.errorMessage != null) {
           AppFeedback.showError(context, state.errorMessage!);
         }
       },
       builder: (context, state) {
+        if (state.status == ColdChainStatus.loading &&
+            state.excursions.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final filtered = state.filteredExcursions;
+
         return Scaffold(
           backgroundColor: colorScheme.surface,
           appBar: AppBar(
-            toolbarHeight: isLandscape ? 40 : 56,
+            backgroundColor: colorScheme.surfaceContainer,
             title: Text(
               'Cold-Chain Excursion Audit Log',
               style: TextStyle(
-                fontSize: isLandscape ? 14 : 17,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
               ),
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh Audit Logs',
-                onPressed: () => cubit.loadExcursions(),
+                tooltip: 'Export GDP CSV',
+                icon: Icon(Icons.download, color: colorScheme.primary),
+                onPressed: () async {
+                  final cubit = widget.cubit ?? context.read<ColdChainCubit>();
+                  final csv = await cubit.exportAuditCsv();
+                  if (context.mounted) {
+                    _showCsvExportModal(context, csv, colorScheme);
+                  }
+                },
+              ),
+              IconButton(
+                tooltip: 'Refresh Log',
+                icon: Icon(Icons.refresh, color: colorScheme.onSurfaceVariant),
+                onPressed: () {
+                  final cubit = widget.cubit ?? context.read<ColdChainCubit>();
+                  cubit.loadExcursions();
+                },
               ),
             ],
           ),
@@ -283,109 +285,90 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
             backgroundColor: colorScheme.primary,
             foregroundColor: colorScheme.onPrimary,
             icon: const Icon(Icons.file_download),
-            label: const Text('Export QA CSV'),
+            label: const Text('Export GDP Audit'),
             onPressed: () async {
+              final cubit = widget.cubit ?? context.read<ColdChainCubit>();
               final csv = await cubit.exportAuditCsv();
-              if (context.mounted && csv.isNotEmpty) {
-                _showExportSheet(context, csv, colorScheme);
+              if (context.mounted) {
+                _showCsvExportModal(context, csv, colorScheme);
               }
             },
           ),
           body: isLandscape
-              ? _buildLandscapeLayout(context, state, cubit, colorScheme)
-              : _buildPortraitLayout(context, state, cubit, colorScheme),
+              ? Row(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildMetricsOverview(state.metrics, colorScheme),
+                            const SizedBox(height: 12),
+                            _buildFilterSelector(context, state, colorScheme),
+                          ],
+                        ),
+                      ),
+                    ),
+                    VerticalDivider(
+                      width: 1,
+                      color: colorScheme.outlineVariant,
+                    ),
+                    Expanded(
+                      flex: 6,
+                      child: _buildExcursionListView(
+                        filtered,
+                        colorScheme,
+                        context,
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          _buildMetricsOverview(state.metrics, colorScheme),
+                          const SizedBox(height: 10),
+                          _buildFilterSelector(context, state, colorScheme),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: _buildExcursionListView(
+                        filtered,
+                        colorScheme,
+                        context,
+                      ),
+                    ),
+                  ],
+                ),
         );
       },
     );
+
+    if (widget.cubit != null) {
+      return BlocProvider<ColdChainCubit>.value(
+        value: widget.cubit!,
+        child: content,
+      );
+    }
+    return content;
   }
 
-  Widget _buildPortraitLayout(
-    BuildContext context,
-    ColdChainState state,
-    ColdChainCubit cubit,
+  Widget _buildMetricsOverview(
+    Map<String, dynamic> metrics,
     ColorScheme colorScheme,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildMetricsOverview(state, colorScheme),
-          const SizedBox(height: 12),
-          _buildRegulatoryThresholdBanner(colorScheme),
-          const SizedBox(height: 12),
-          _buildFilterChips(state, cubit, colorScheme),
-          const SizedBox(height: 12),
-          if (state.isLoading)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: CircularProgressIndicator(color: colorScheme.primary),
-              ),
-            )
-          else if (state.filteredExcursions.isEmpty)
-            _buildEmptyState(colorScheme)
-          else
-            ...state.filteredExcursions.map(
-              (exc) => _buildExcursionCard(context, exc, colorScheme),
-            ),
-          const SizedBox(height: 80),
-        ],
-      ),
-    );
-  }
+    final compliance =
+        (metrics['compliance_score'] as num?)?.toDouble() ?? 100.0;
+    final breached = (metrics['breached_excursions'] as num?)?.toInt() ?? 0;
+    final active = (metrics['active_excursions'] as num?)?.toInt() ?? 0;
 
-  Widget _buildLandscapeLayout(
-    BuildContext context,
-    ColdChainState state,
-    ColdChainCubit cubit,
-    ColorScheme colorScheme,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 4,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildMetricsOverview(state, colorScheme),
-                const SizedBox(height: 10),
-                _buildRegulatoryThresholdBanner(colorScheme),
-                const SizedBox(height: 10),
-                _buildFilterChips(state, cubit, colorScheme),
-              ],
-            ),
-          ),
-        ),
-        VerticalDivider(width: 1, color: colorScheme.outlineVariant),
-        Expanded(
-          flex: 6,
-          child: state.isLoading
-              ? Center(
-                  child: CircularProgressIndicator(color: colorScheme.primary),
-                )
-              : state.filteredExcursions.isEmpty
-              ? _buildEmptyState(colorScheme)
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  itemCount: state.filteredExcursions.length,
-                  itemBuilder: (ctx, idx) => _buildExcursionCard(
-                    context,
-                    state.filteredExcursions[idx],
-                    colorScheme,
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetricsOverview(ColdChainState state, ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -401,7 +384,7 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
             children: [
               Expanded(
                 child: Text(
-                  'PHARMA REEFER AUDIT METRICS',
+                  'GDP REEFER COMPLIANCE',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -415,15 +398,19 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer,
+                  color: compliance >= 90.0
+                      ? colorScheme.primaryContainer
+                      : colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'GDP ANNEX 5',
+                  '${compliance.toStringAsFixed(1)}% COMPLIANT',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: colorScheme.onSecondaryContainer,
+                    color: compliance >= 90.0
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onErrorContainer,
                   ),
                 ),
               ),
@@ -434,27 +421,27 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
             children: [
               Expanded(
                 child: _buildMetricTile(
-                  'Total Excursions',
-                  '${state.totalExcursions}',
+                  'Active',
+                  '$active active',
+                  active > 0 ? colorScheme.error : colorScheme.onSurface,
+                  colorScheme,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildMetricTile(
+                  '> 5-Min Breaches',
+                  '$breached events',
+                  breached > 0 ? colorScheme.error : colorScheme.onSurface,
+                  colorScheme,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildMetricTile(
+                  'Threshold',
+                  'Max -15.0 °C',
                   colorScheme.primary,
-                  colorScheme,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricTile(
-                  'Breaches (>5m)',
-                  '${state.criticalBreachCount}',
-                  colorScheme.error,
-                  colorScheme,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricTile(
-                  'Compliant (<5m)',
-                  '${state.compliantTransientCount}',
-                  colorScheme.secondary,
                   colorScheme,
                 ),
               ),
@@ -472,13 +459,10 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
     ColorScheme colorScheme,
   ) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,318 +470,317 @@ class _ColdChainAuditViewState extends State<ColdChainAuditView> {
           Text(
             label,
             style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: accentColor,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRegulatoryThresholdBanner(ColorScheme colorScheme) {
+  Widget _buildFilterSelector(
+    BuildContext context,
+    ColdChainState state,
+    ColorScheme colorScheme,
+  ) {
+    final cubit = widget.cubit ?? context.read<ColdChainCubit>();
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          Icon(Icons.ac_unit, color: colorScheme.primary, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
+          _buildFilterChip(
+            'All Excursions',
+            ColdChainFilter.all,
+            state.filter,
+            cubit,
+            colorScheme,
+          ),
+          _buildFilterChip(
+            'Breached (>5m)',
+            ColdChainFilter.activeBreaches,
+            state.filter,
+            cubit,
+            colorScheme,
+          ),
+          _buildFilterChip(
+            'Resolved',
+            ColdChainFilter.resolved,
+            state.filter,
+            cubit,
+            colorScheme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(
+    String label,
+    ColdChainFilter filter,
+    ColdChainFilter currentFilter,
+    ColdChainCubit cubit,
+    ColorScheme colorScheme,
+  ) {
+    final isSelected = filter == currentFilter;
+    return Expanded(
+      child: InkWell(
+        onTap: () => cubit.setFilter(filter),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
             child: Text(
-              'Target: -20.0°C | Critical Excursion: > -15.0°C for > 300s',
+              label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurfaceVariant,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips(
-    ColdChainState state,
-    ColdChainCubit cubit,
-    ColorScheme colorScheme,
-  ) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: ColdChainFilter.values.map((f) {
-          final isSelected = f == state.filter;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(
-                f.displayName,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-              selected: isSelected,
-              selectedColor: colorScheme.primary,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              onSelected: (_) => cubit.setFilter(f),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildExcursionCard(
-    BuildContext context,
-    TemperatureExcursion exc,
-    ColorScheme colorScheme,
-  ) {
-    final isBreach = exc.isAuditableBreach;
-    final isResolved = exc.isResolved;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isBreach
-              ? colorScheme.error.withValues(alpha: 0.4)
-              : colorScheme.outlineVariant,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    );
+  }
+
+  Widget _buildExcursionListView(
+    List<TemperatureExcursion> excursions,
+    ColorScheme colorScheme,
+    BuildContext context,
+  ) {
+    if (excursions.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isBreach
-                            ? colorScheme.errorContainer
-                            : colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        isBreach ? Icons.warning : Icons.thermostat,
-                        size: 16,
-                        color: isBreach
-                            ? colorScheme.onErrorContainer
-                            : colorScheme.onSecondaryContainer,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            exc.vehicleName,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            'Driver: ${exc.driverName} | Route: ${exc.routeId}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              Icon(
+                Icons.check_circle_outline,
+                size: 36,
+                color: colorScheme.primary,
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isBreach
-                      ? colorScheme.errorContainer
-                      : colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isBreach ? 'REGULATORY BREACH' : 'COMPLIANT TRANSIENT',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: isBreach
-                        ? colorScheme.onErrorContainer
-                        : colorScheme.onSecondaryContainer,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildExcursionParam(
-                  'Peak Temp',
-                  exc.formattedPeakTemp,
-                  colorScheme,
-                  isAlert: exc.maxRecordedTempC > -15.0,
-                ),
-              ),
-              Expanded(
-                child: _buildExcursionParam(
-                  'Duration',
-                  exc.formattedDuration,
-                  colorScheme,
-                  isAlert: exc.durationSeconds >= 300,
-                ),
-              ),
-              Expanded(
-                child: _buildExcursionParam(
-                  'Status',
-                  isResolved ? 'Resolved' : 'Active / Unsigned',
-                  colorScheme,
-                ),
-              ),
-            ],
-          ),
-          if (exc.resolutionNotes != null &&
-              exc.resolutionNotes!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'Notes: ${exc.resolutionNotes} (Signed: ${exc.acknowledgedBy ?? "Unknown"})',
+              const SizedBox(height: 8),
+              Text(
+                'Zero Excursion Breaches',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'All refrigerated reefer units operating strictly within nominal GDP specifications.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-          ],
-          if (!isResolved) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.rate_review, size: 16),
-                label: const Text(
-                  'Sign & Acknowledge Excursion',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colorScheme.primary,
-                  side: BorderSide(color: colorScheme.primary),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-                onPressed: () =>
-                    _showAcknowledgeDialog(context, exc, colorScheme),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExcursionParam(
-    String label,
-    String value,
-    ColorScheme colorScheme, {
-    bool isAlert = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isAlert ? colorScheme.error : colorScheme.onSurface,
+            ],
           ),
-          overflow: TextOverflow.ellipsis,
         ),
-      ],
-    );
-  }
+      );
+    }
 
-  Widget _buildEmptyState(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 32,
-              color: colorScheme.secondary,
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+      itemCount: excursions.length,
+      itemBuilder: (ctx, index) {
+        final exc = excursions[index];
+        final isBreached = exc.isThresholdBreached;
+        final isCritical =
+            exc.severity == TemperatureExcursionSeverity.critical;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isCritical
+                  ? colorScheme.error
+                  : isBreached
+                  ? colorScheme.error.withValues(alpha: 0.5)
+                  : colorScheme.outlineVariant,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Zero Cold-Chain Excursions',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isCritical
+                          ? colorScheme.errorContainer
+                          : colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.thermostat,
+                      size: 16,
+                      color: isCritical
+                          ? colorScheme.onErrorContainer
+                          : colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          exc.vehicleName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${exc.vehicleId} | Route: ${exc.routeId}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        exc.formattedTemp,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isCritical
+                              ? colorScheme.error
+                              : colorScheme.primary,
+                        ),
+                      ),
+                      Text(
+                        'Limit: ${exc.formattedThreshold}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'All pharmaceutical cold-chain reefer cargo units are maintained within regulatory temperature boundaries.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                runSpacing: 4,
+                spacing: 8,
+                children: [
+                  Text(
+                    'Duration: ${exc.formattedDuration}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isBreached
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isBreached
+                          ? colorScheme.error
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    exc.isActive ? 'BREACH ACTIVE' : 'RESOLVED',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: exc.isActive
+                          ? colorScheme.error
+                          : colorScheme.primary,
+                    ),
+                  ),
+                  Text(
+                    exc.isAcknowledged ? 'ACKNOWLEDGED' : 'PENDING AUDIT',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: exc.isAcknowledged
+                          ? colorScheme.secondary
+                          : colorScheme.error,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      ),
+              if (exc.notes != null && exc.notes!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Auditor: ${exc.notes!}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (!exc.isAcknowledged) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.primary,
+                      side: BorderSide(color: colorScheme.primary),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                    ),
+                    icon: const Icon(Icons.check, size: 14),
+                    label: const Text(
+                      'Acknowledge Breach',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    onPressed: () =>
+                        _showAcknowledgeDialog(context, exc, colorScheme),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

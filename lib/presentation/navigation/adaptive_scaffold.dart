@@ -81,20 +81,20 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
           ),
           actions: [
             IconButton(
+              icon: Icon(Icons.ac_unit, size: isLandscape ? 18 : 20),
+              tooltip: 'Cold-Chain Excursion Audit Log',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ColdChainAuditView()),
+                );
+              },
+            ),
+            IconButton(
               icon: Icon(Icons.timer_outlined, size: isLandscape ? 18 : 20),
               tooltip: 'Driver HOS Fatigue & Rest Timer',
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const DriverHosView()),
-                );
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.ac_unit, size: isLandscape ? 18 : 20),
-              tooltip: 'Cold-Chain QA Excursion Audit',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ColdChainAuditView()),
                 );
               },
             ),

@@ -19,7 +19,7 @@ Execute using the 6-phase autonomous sprint rule:
 - [x] **Sprint 3: Cold-Chain Temperature Excursion Alert Log & Audit Exporter**
   - *User Story*: As a pharmaceutical quality assurance auditor, I need an automated excursion audit report capturing any time reefer temperature exceeds -15°C for more than 5 minutes.
   - *Acceptance Criteria*: SQLite audit table `temperature_excursions`, duration tracking, CSV/PDF formatted export sheet.
-  - *Test Matrix*: Excursion detection logic tests, duration threshold boundary tests, export serialization tests. (Passed 5 unit tests + 3 widget tests).
+  - *Test Matrix*: Excursion detection logic tests, duration threshold boundary tests, export serialization tests. (Passed 8 unit tests + 4 widget tests).
 
 - [ ] **Sprint 4: Fuel Station Lowest-Price Dynamic Route Finder**
   - *User Story*: As a fleet operator, I want the route optimizer to suggest refueling stops at highway fuel depots with the lowest verified diesel price along the corridor.

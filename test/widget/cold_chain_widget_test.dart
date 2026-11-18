@@ -1,131 +1,95 @@
-import 'dart:async';
-
 import 'package:fleetroute_app/core/di/injection_container.dart' as di;
 import 'package:fleetroute_app/domain/entities/temperature_excursion.dart';
-import 'package:fleetroute_app/domain/entities/vehicle.dart';
 import 'package:fleetroute_app/domain/repositories/cold_chain_repository.dart';
 import 'package:fleetroute_app/presentation/cold_chain/cold_chain_audit_view.dart';
 import 'package:fleetroute_app/presentation/cold_chain/cubit/cold_chain_cubit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class WidgetTestMockColdChainRepository implements ColdChainRepository {
+class WidgetTestMockColdChainRepo implements ColdChainRepository {
   List<TemperatureExcursion> excursions = [
     TemperatureExcursion(
-      id: 'EXC-9001',
-      vehicleId: 'VH-102',
-      vehicleName: 'Scania R500 Pharma Cold-Chain',
-      driverName: 'Rashid Qureshi',
-      routeId: 'RT-202',
-      startTime: DateTime(2026, 11, 17, 9, 15),
-      endTime: DateTime(2026, 11, 17, 9, 22),
-      durationSeconds: 420,
-      maxRecordedTempC: -12.8,
-      targetTempC: -20.0,
+      id: 'EXC-001',
+      vehicleId: 'VH-105',
+      vehicleName: 'ThermoKing Reefer Express',
+      routeId: 'RT-205',
+      recordedTempC: -12.1,
       thresholdTempC: -15.0,
-      severity: TemperatureExcursionSeverity.critical,
-      isResolved: true,
-      resolutionNotes: 'Compressor thermal cycle recovery',
-      acknowledgedBy: 'QA Lead Dr. Ayesha',
-      complianceStatus: 'EXCURSION_VIOLATION',
+      startTime: DateTime(2026, 11, 18, 10, 0),
+      endTime: null,
+      durationSeconds: 420,
+      severity: TemperatureExcursionSeverity.warning,
+      notes: null,
+      isAcknowledged: false,
     ),
     TemperatureExcursion(
-      id: 'EXC-9002',
+      id: 'EXC-002',
       vehicleId: 'VH-102',
       vehicleName: 'Scania R500 Pharma Cold-Chain',
-      driverName: 'Rashid Qureshi',
       routeId: 'RT-202',
-      startTime: DateTime(2026, 11, 18, 8, 30),
-      endTime: null,
-      durationSeconds: 360,
-      maxRecordedTempC: -14.2,
-      targetTempC: -20.0,
+      recordedTempC: -8.4,
       thresholdTempC: -15.0,
+      startTime: DateTime(2026, 11, 17, 14, 0),
+      endTime: DateTime(2026, 11, 17, 14, 12),
+      durationSeconds: 720,
       severity: TemperatureExcursionSeverity.critical,
-      isResolved: false,
-      resolutionNotes: null,
-      acknowledgedBy: null,
-      complianceStatus: 'EXCURSION_VIOLATION',
+      notes: 'Offload seal breach; restored.',
+      isAcknowledged: true,
     ),
   ];
-
-  final StreamController<List<TemperatureExcursion>> _controller =
-      StreamController<List<TemperatureExcursion>>.broadcast();
 
   @override
   Future<List<TemperatureExcursion>> getExcursions({
     String? vehicleId,
-    bool breachesOnly = false,
+    bool onlyActive = false,
   }) async {
-    var list = excursions;
-    if (vehicleId != null) {
-      list = list.where((e) => e.vehicleId == vehicleId).toList();
-    }
-    if (breachesOnly) {
-      list = list.where((e) => e.isAuditableBreach).toList();
-    }
-    return list;
+    return excursions;
   }
 
   @override
-  Future<void> logExcursion(TemperatureExcursion excursion) async {
-    excursions.add(excursion);
-    _controller.add(excursions);
-  }
-
-  @override
-  Future<void> updateExcursion(TemperatureExcursion excursion) async {
-    final idx = excursions.indexWhere((e) => e.id == excursion.id);
-    if (idx != -1) {
-      excursions[idx] = excursion;
-    }
-    _controller.add(excursions);
-  }
+  Future<void> recordTemperatureReading({
+    required String vehicleId,
+    required String vehicleName,
+    required String routeId,
+    required double tempC,
+    required DateTime timestamp,
+  }) async {}
 
   @override
   Future<void> acknowledgeExcursion({
     required String excursionId,
-    required String auditorName,
-    required String notes,
+    required String auditorNotes,
   }) async {
     final idx = excursions.indexWhere((e) => e.id == excursionId);
-    if (idx != -1) {
+    if (idx >= 0) {
       excursions[idx] = excursions[idx].copyWith(
-        acknowledgedBy: auditorName,
-        resolutionNotes: notes,
-        isResolved: true,
+        isAcknowledged: true,
+        notes: auditorNotes,
       );
-      _controller.add(excursions);
     }
   }
 
   @override
   Future<String> exportAuditCsv({String? vehicleId}) async {
-    final list = await getExcursions(vehicleId: vehicleId);
-    return TemperatureExcursion.generateAuditCsv(list);
+    return 'Excursion ID,Vehicle ID,Vehicle Name\nEXC-001,VH-105,"ThermoKing Reefer Express"';
   }
 
   @override
-  Stream<List<TemperatureExcursion>> watchExcursions() => _controller.stream;
-
-  @override
-  Future<TemperatureExcursion?> recordTelemetryTick({
-    required Vehicle vehicle,
-    required double currentTempC,
-    required DateTime timestamp,
-  }) async => null;
-
-  void dispose() {
-    _controller.close();
+  Future<Map<String, dynamic>> getColdChainAuditMetrics() async {
+    return {
+      'total_excursions': 2,
+      'active_excursions': 1,
+      'breached_excursions': 2,
+      'compliance_score': 50.0,
+    };
   }
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late WidgetTestMockColdChainRepository mockRepo;
+  late WidgetTestMockColdChainRepo mockRepo;
   late ColdChainCubit cubit;
 
   setUp(() async {
@@ -133,106 +97,99 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await di.initDependencies(prefOverride: prefs);
 
-    mockRepo = WidgetTestMockColdChainRepository();
+    mockRepo = WidgetTestMockColdChainRepo();
     cubit = ColdChainCubit(coldChainRepository: mockRepo);
     await cubit.loadExcursions();
   });
 
   tearDown(() {
     cubit.close();
-    mockRepo.dispose();
   });
 
-  Widget createTestWidget({required Widget child}) {
-    return BlocProvider<ColdChainCubit>.value(
-      value: cubit,
-      child: MaterialApp(
-        theme: ThemeData.dark(useMaterial3: true),
-        home: child,
-      ),
+  Widget createTestWidget() {
+    return MaterialApp(
+      theme: ThemeData.dark(useMaterial3: true),
+      home: ColdChainAuditView(cubit: cubit),
     );
   }
 
   group('ColdChainAuditView Widget Tests', () {
     testWidgets(
-      'Test 32: Renders Cold-Chain Excursion Audit Log with metrics, threshold banner, and cards',
+      'Test 32: Renders Cold-Chain Audit header, compliance metrics, filter chips, and excursion cards',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 2.0;
         addTearDown(() => tester.view.resetPhysicalSize());
 
-        await tester.pumpWidget(
-          createTestWidget(child: ColdChainAuditView(cubit: cubit)),
-        );
+        await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
         expect(find.text('Cold-Chain Excursion Audit Log'), findsOneWidget);
-        expect(find.text('PHARMA REEFER AUDIT METRICS'), findsOneWidget);
-        expect(find.text('Total Excursions'), findsOneWidget);
-        expect(find.text('Breaches (>5m)'), findsOneWidget);
-        expect(
-          find.text(
-            'Target: -20.0°C | Critical Excursion: > -15.0°C for > 300s',
-          ),
-          findsOneWidget,
-        );
-        expect(find.text('Scania R500 Pharma Cold-Chain'), findsNWidgets(2));
-        expect(find.text('Export QA CSV'), findsOneWidget);
+        expect(find.text('GDP REEFER COMPLIANCE'), findsOneWidget);
+        expect(find.text('50.0% COMPLIANT'), findsOneWidget);
+        expect(find.text('All Excursions'), findsOneWidget);
+        expect(find.text('Breached (>5m)'), findsOneWidget);
+        expect(find.text('ThermoKing Reefer Express'), findsOneWidget);
+        expect(find.text('Scania R500 Pharma Cold-Chain'), findsOneWidget);
+        expect(find.text('Acknowledge Breach'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
 
     testWidgets(
-      'Test 33: Tapping Sign & Acknowledge opens auditor sign-off dialog and certifies record',
+      'Test 33: Acknowledge Breach dialog opens and submits auditor note successfully',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 2.0;
         addTearDown(() => tester.view.resetPhysicalSize());
 
-        await tester.pumpWidget(
-          createTestWidget(child: ColdChainAuditView(cubit: cubit)),
-        );
+        await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // One unresolved excursion has sign button
-        final signButton = find.text('Sign & Acknowledge Excursion');
-        expect(signButton, findsOneWidget);
-
-        await tester.tap(signButton);
+        // Tap Acknowledge Breach button on unacknowledged excursion EXC-001
+        await tester.tap(find.text('Acknowledge Breach'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Auditor Excursion Sign-Off'), findsOneWidget);
-        expect(find.text('Auditor Full Name'), findsOneWidget);
+        expect(find.text('Acknowledge Excursion EXC-001'), findsOneWidget);
+        expect(find.text('Confirm Acknowledgment'), findsOneWidget);
 
-        // Enter notes and sign
-        await tester.enterText(
-          find.widgetWithText(
-            TextFormField,
-            'Corrective Action & Root Cause Notes',
-          ),
-          'Auxiliary refrigeration unit activated.',
-        );
-        await tester.pump();
-
-        await tester.tap(find.text('Sign & Archive'));
+        // Submit acknowledgment
+        await tester.tap(find.text('Confirm Acknowledgment'));
         await tester.pumpAndSettle();
 
-        // Verified closed and archived
-        expect(find.text('Sign & Acknowledge Excursion'), findsNothing);
+        expect(mockRepo.excursions.first.isAcknowledged, isTrue);
         expect(tester.takeException(), isNull);
       },
     );
 
     testWidgets(
-      'Test 34: Zero RenderFlex overflow errors on 800x360 landscape viewport',
+      'Test 34: Export GDP Audit opens CSV preview modal sheet with copy action',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        // Tap Export GDP Audit FAB
+        await tester.tap(find.text('Export GDP Audit'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Pharma GDP Excursion Audit Export'), findsOneWidget);
+        expect(find.text('Copy CSV Manifest to Clipboard'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'Test 35: Zero RenderFlex overflow errors on 800x360 landscape viewport',
       (tester) async {
         tester.view.physicalSize = const Size(1600, 720); // 800x360 @ 2.0 dpr
         tester.view.devicePixelRatio = 2.0;
         addTearDown(() => tester.view.resetPhysicalSize());
 
-        await tester.pumpWidget(
-          createTestWidget(child: ColdChainAuditView(cubit: cubit)),
-        );
+        await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
         expect(find.byType(ColdChainAuditView), findsOneWidget);

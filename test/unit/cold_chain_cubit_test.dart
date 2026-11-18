@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:fleetroute_app/domain/entities/temperature_excursion.dart';
-import 'package:fleetroute_app/domain/entities/vehicle.dart';
 import 'package:fleetroute_app/domain/repositories/cold_chain_repository.dart';
 import 'package:fleetroute_app/presentation/cold_chain/cubit/cold_chain_cubit.dart';
 import 'package:fleetroute_app/presentation/cold_chain/cubit/cold_chain_state.dart';
@@ -10,203 +7,167 @@ import 'package:flutter_test/flutter_test.dart';
 class MockColdChainRepository implements ColdChainRepository {
   List<TemperatureExcursion> excursions = [
     TemperatureExcursion(
-      id: 'EXC-9001',
-      vehicleId: 'VH-102',
-      vehicleName: 'Scania R500 Pharma Cold-Chain',
-      driverName: 'Rashid Qureshi',
-      routeId: 'RT-202',
-      startTime: DateTime(2026, 11, 17, 9, 15),
-      endTime: DateTime(2026, 11, 17, 9, 22),
-      durationSeconds: 420,
-      maxRecordedTempC: -12.8,
-      targetTempC: -20.0,
+      id: 'EXC-001',
+      vehicleId: 'VH-105',
+      vehicleName: 'ThermoKing Reefer Express',
+      routeId: 'RT-205',
+      recordedTempC: -12.1,
       thresholdTempC: -15.0,
-      severity: TemperatureExcursionSeverity.critical,
-      isResolved: true,
-      resolutionNotes: 'Compressor thermal cycle recovery',
-      acknowledgedBy: 'QA Lead Dr. Ayesha',
-      complianceStatus: 'EXCURSION_VIOLATION',
-    ),
-    TemperatureExcursion(
-      id: 'EXC-9002',
-      vehicleId: 'VH-102',
-      vehicleName: 'Scania R500 Pharma Cold-Chain',
-      driverName: 'Rashid Qureshi',
-      routeId: 'RT-202',
-      startTime: DateTime(2026, 11, 18, 8, 30),
+      startTime: DateTime(2026, 11, 18, 10, 0),
       endTime: null,
-      durationSeconds: 360,
-      maxRecordedTempC: -14.2,
-      targetTempC: -20.0,
-      thresholdTempC: -15.0,
-      severity: TemperatureExcursionSeverity.critical,
-      isResolved: false,
-      resolutionNotes: null,
-      acknowledgedBy: null,
-      complianceStatus: 'EXCURSION_VIOLATION',
+      durationSeconds: 420, // 7 min (Breached > 5m)
+      severity: TemperatureExcursionSeverity.warning,
+      notes: null,
+      isAcknowledged: false,
     ),
     TemperatureExcursion(
-      id: 'EXC-9003',
+      id: 'EXC-002',
+      vehicleId: 'VH-102',
+      vehicleName: 'Scania R500 Pharma Cold-Chain',
+      routeId: 'RT-202',
+      recordedTempC: -8.4,
+      thresholdTempC: -15.0,
+      startTime: DateTime(2026, 11, 17, 14, 0),
+      endTime: DateTime(2026, 11, 17, 14, 12),
+      durationSeconds: 720, // 12 min (Resolved)
+      severity: TemperatureExcursionSeverity.critical,
+      notes: 'Door seal restored',
+      isAcknowledged: true,
+    ),
+    TemperatureExcursion(
+      id: 'EXC-003',
       vehicleId: 'VH-110',
       vehicleName: 'Carrier Transicold Transit Van',
-      driverName: 'Asif Javed',
       routeId: 'RT-210',
-      startTime: DateTime(2026, 11, 18, 10, 5),
-      endTime: DateTime(2026, 11, 18, 10, 8),
-      durationSeconds: 180,
-      maxRecordedTempC: -16.5,
-      targetTempC: -20.0,
+      recordedTempC: -14.2,
       thresholdTempC: -15.0,
+      startTime: DateTime(2026, 11, 16, 9, 0),
+      endTime: DateTime(2026, 11, 16, 9, 4),
+      durationSeconds: 240, // 4 min (Under 5m)
       severity: TemperatureExcursionSeverity.warning,
-      isResolved: true,
-      resolutionNotes: 'Door open transient during parcel drop',
-      acknowledgedBy: 'Station Supervisor Farooq',
-      complianceStatus: 'COMPLIANT_TRANSIENT',
+      notes: null,
+      isAcknowledged: true,
     ),
   ];
 
-  final StreamController<List<TemperatureExcursion>> _controller =
-      StreamController<List<TemperatureExcursion>>.broadcast();
-
   bool shouldThrow = false;
-  TemperatureExcursion? activeLiveExcursion;
 
   @override
   Future<List<TemperatureExcursion>> getExcursions({
     String? vehicleId,
-    bool breachesOnly = false,
+    bool onlyActive = false,
   }) async {
-    if (shouldThrow) throw Exception('Database error');
+    if (shouldThrow) throw Exception('Database read error');
     var list = excursions;
     if (vehicleId != null) {
       list = list.where((e) => e.vehicleId == vehicleId).toList();
     }
-    if (breachesOnly) {
-      list = list.where((e) => e.isAuditableBreach).toList();
+    if (onlyActive) {
+      list = list.where((e) => e.isActive).toList();
     }
     return list;
   }
 
   @override
-  Future<void> logExcursion(TemperatureExcursion excursion) async {
-    excursions.add(excursion);
-    _controller.add(excursions);
-  }
+  Future<void> recordTemperatureReading({
+    required String vehicleId,
+    required String vehicleName,
+    required String routeId,
+    required double tempC,
+    required DateTime timestamp,
+  }) async {
+    if (shouldThrow) throw Exception('Telemetry ingest failure');
 
-  @override
-  Future<void> updateExcursion(TemperatureExcursion excursion) async {
-    final idx = excursions.indexWhere((e) => e.id == excursion.id);
-    if (idx != -1) {
-      excursions[idx] = excursion;
+    final index = excursions.indexWhere(
+      (e) => e.vehicleId == vehicleId && e.isActive,
+    );
+
+    if (tempC > -15.0) {
+      if (index >= 0) {
+        final existing = excursions[index];
+        final elapsed = timestamp.difference(existing.startTime).inSeconds;
+        excursions[index] = existing.copyWith(
+          recordedTempC: tempC > existing.recordedTempC
+              ? tempC
+              : existing.recordedTempC,
+          durationSeconds: elapsed > existing.durationSeconds
+              ? elapsed
+              : existing.durationSeconds,
+          severity: TemperatureExcursionSeverity.fromTemperature(
+            tempC > existing.recordedTempC ? tempC : existing.recordedTempC,
+          ),
+        );
+      } else {
+        excursions.insert(
+          0,
+          TemperatureExcursion(
+            id: 'EXC-${DateTime.now().millisecondsSinceEpoch}',
+            vehicleId: vehicleId,
+            vehicleName: vehicleName,
+            routeId: routeId,
+            recordedTempC: tempC,
+            thresholdTempC: -15.0,
+            startTime: timestamp,
+            endTime: null,
+            durationSeconds: 0,
+            severity: TemperatureExcursionSeverity.fromTemperature(tempC),
+            isAcknowledged: false,
+          ),
+        );
+      }
     } else {
-      excursions.add(excursion);
+      if (index >= 0) {
+        final existing = excursions[index];
+        final elapsed = timestamp.difference(existing.startTime).inSeconds;
+        excursions[index] = existing.copyWith(
+          endTime: timestamp,
+          durationSeconds: elapsed > existing.durationSeconds
+              ? elapsed
+              : existing.durationSeconds,
+        );
+      }
     }
-    _controller.add(excursions);
   }
 
   @override
   Future<void> acknowledgeExcursion({
     required String excursionId,
-    required String auditorName,
-    required String notes,
+    required String auditorNotes,
   }) async {
-    final idx = excursions.indexWhere((e) => e.id == excursionId);
-    if (idx != -1) {
-      excursions[idx] = excursions[idx].copyWith(
-        acknowledgedBy: auditorName,
-        resolutionNotes: notes,
-        isResolved: true,
+    final index = excursions.indexWhere((e) => e.id == excursionId);
+    if (index >= 0) {
+      excursions[index] = excursions[index].copyWith(
+        isAcknowledged: true,
+        notes: auditorNotes,
       );
-      _controller.add(excursions);
     }
   }
 
   @override
   Future<String> exportAuditCsv({String? vehicleId}) async {
     final list = await getExcursions(vehicleId: vehicleId);
-    return TemperatureExcursion.generateAuditCsv(list);
-  }
-
-  @override
-  Stream<List<TemperatureExcursion>> watchExcursions() => _controller.stream;
-
-  @override
-  Future<TemperatureExcursion?> recordTelemetryTick({
-    required Vehicle vehicle,
-    required double currentTempC,
-    required DateTime timestamp,
-  }) async {
-    if (currentTempC > TemperatureExcursion.criticalThresholdCelsius) {
-      if (activeLiveExcursion == null) {
-        activeLiveExcursion = TemperatureExcursion(
-          id: 'EXC-LIVE',
-          vehicleId: vehicle.id,
-          vehicleName: vehicle.name,
-          driverName: vehicle.driverName,
-          routeId: vehicle.assignedRouteId,
-          startTime: timestamp,
-          durationSeconds: 0,
-          maxRecordedTempC: currentTempC,
-          severity: TemperatureExcursionSeverity.critical,
-          complianceStatus: 'COMPLIANT_TRANSIENT',
-        );
-        excursions.add(activeLiveExcursion!);
-        _controller.add(excursions);
-        return activeLiveExcursion;
-      } else {
-        final duration = timestamp
-            .difference(activeLiveExcursion!.startTime)
-            .inSeconds;
-        final maxTemp = currentTempC > activeLiveExcursion!.maxRecordedTempC
-            ? currentTempC
-            : activeLiveExcursion!.maxRecordedTempC;
-        final isBreach =
-            duration >= TemperatureExcursion.breachDurationSecondsThreshold;
-
-        activeLiveExcursion = activeLiveExcursion!.copyWith(
-          durationSeconds: duration,
-          maxRecordedTempC: maxTemp,
-          complianceStatus: isBreach
-              ? 'EXCURSION_VIOLATION'
-              : 'COMPLIANT_TRANSIENT',
-        );
-        final idx = excursions.indexWhere(
-          (e) => e.id == activeLiveExcursion!.id,
-        );
-        if (idx != -1) excursions[idx] = activeLiveExcursion!;
-        _controller.add(excursions);
-        return activeLiveExcursion;
-      }
-    } else {
-      if (activeLiveExcursion != null) {
-        final duration = timestamp
-            .difference(activeLiveExcursion!.startTime)
-            .inSeconds;
-        final isBreach =
-            duration >= TemperatureExcursion.breachDurationSecondsThreshold;
-
-        final resolved = activeLiveExcursion!.copyWith(
-          endTime: timestamp,
-          durationSeconds: duration,
-          isResolved: true,
-          complianceStatus: isBreach
-              ? 'EXCURSION_VIOLATION'
-              : 'COMPLIANT_TRANSIENT',
-        );
-        final idx = excursions.indexWhere(
-          (e) => e.id == activeLiveExcursion!.id,
-        );
-        if (idx != -1) excursions[idx] = resolved;
-        activeLiveExcursion = null;
-        _controller.add(excursions);
-        return resolved;
-      }
-      return null;
+    final buffer = StringBuffer();
+    buffer.writeln(
+      'Excursion ID,Vehicle ID,Vehicle Name,Route ID,Peak Temp (°C),Threshold (°C),Start Time,End Time,Duration (s),Duration (min),Severity,Status,Acknowledged,Auditor Notes',
+    );
+    for (final e in list) {
+      buffer.writeln(e.toCsvRow());
     }
+    return buffer.toString();
   }
 
-  void dispose() {
-    _controller.close();
+  @override
+  Future<Map<String, dynamic>> getColdChainAuditMetrics() async {
+    final active = excursions.where((e) => e.isActive).length;
+    final breached = excursions.where((e) => e.isThresholdBreached).length;
+    final compliance =
+        (((excursions.length - breached) / excursions.length) * 100);
+    return {
+      'total_excursions': excursions.length,
+      'active_excursions': active,
+      'breached_excursions': breached,
+      'compliance_score': compliance,
+    };
   }
 }
 
@@ -221,103 +182,148 @@ void main() {
 
   tearDown(() {
     cubit.close();
-    mockRepo.dispose();
   });
 
   group('ColdChainCubit & TemperatureExcursion Unit Tests', () {
-    test(
-      'loadExcursions loads all seeded audit records and computes metrics',
-      () async {
-        await cubit.loadExcursions();
-
-        expect(cubit.state.allExcursions.length, 3);
-        expect(cubit.state.totalExcursions, 3);
-        expect(cubit.state.criticalBreachCount, 2); // EXC-9001 and EXC-9002
-        expect(cubit.state.compliantTransientCount, 1); // EXC-9003
-        expect(cubit.state.unresolvedCount, 1); // EXC-9002
-      },
-    );
-
-    test('Filter switching isolates breachesOnly and unresolvedOnly', () async {
+    test('loadExcursions loads excursions and audit metrics cleanly', () async {
       await cubit.loadExcursions();
 
-      cubit.setFilter(ColdChainFilter.breachesOnly);
-      expect(cubit.state.filteredExcursions.length, 2);
-      expect(
-        cubit.state.filteredExcursions.every((e) => e.isAuditableBreach),
-        isTrue,
-      );
+      expect(cubit.state.status, ColdChainStatus.loaded);
+      expect(cubit.state.excursions.length, 3);
+      expect(cubit.state.metrics['total_excursions'], 3);
+      expect(cubit.state.metrics['active_excursions'], 1);
+      expect(cubit.state.metrics['breached_excursions'], 2);
+    });
 
-      cubit.setFilter(ColdChainFilter.unresolvedOnly);
-      expect(cubit.state.filteredExcursions.length, 1);
-      expect(cubit.state.filteredExcursions.first.id, 'EXC-9002');
+    test('Filtered excursions separates active breaches vs resolved', () async {
+      await cubit.loadExcursions();
 
       cubit.setFilter(ColdChainFilter.all);
       expect(cubit.state.filteredExcursions.length, 3);
+
+      cubit.setFilter(ColdChainFilter.activeBreaches);
+      expect(cubit.state.filteredExcursions.length, 2);
+
+      cubit.setFilter(ColdChainFilter.resolved);
+      expect(cubit.state.filteredExcursions.length, 2);
     });
 
     test(
-      'acknowledgeExcursion updates auditor name, notes, and resolves record',
-      () async {
-        await cubit.loadExcursions();
-
-        await cubit.acknowledgeExcursion(
-          excursionId: 'EXC-9002',
-          auditorName: 'Lead Inspector Tariq',
-          notes: 'Backup cooling unit deployed; pharmaceuticals quarantined.',
+      'Temperature breach detection: duration >= 300s is marked as breached',
+      () {
+        final subThreshold = TemperatureExcursion(
+          id: 'EXC-T1',
+          vehicleId: 'VH-101',
+          vehicleName: 'Test Reefer',
+          routeId: 'RT-101',
+          recordedTempC: -14.0,
+          thresholdTempC: -15.0,
+          startTime: DateTime.now(),
+          durationSeconds: 299,
+          severity: TemperatureExcursionSeverity.warning,
         );
+        expect(subThreshold.isThresholdBreached, isFalse);
 
-        expect(cubit.state.unresolvedCount, 0);
-        final updated = cubit.state.allExcursions.firstWhere(
-          (e) => e.id == 'EXC-9002',
-        );
-        expect(updated.isResolved, isTrue);
-        expect(updated.acknowledgedBy, 'Lead Inspector Tariq');
+        final breached = subThreshold.copyWith(durationSeconds: 300);
+        expect(breached.isThresholdBreached, isTrue);
+        expect(breached.formattedDuration, '5m 0s');
+      },
+    );
+
+    test(
+      'Severity escalation: temp > -10.0°C escalates to critical severity',
+      () {
         expect(
-          updated.resolutionNotes,
-          contains('Backup cooling unit deployed'),
+          TemperatureExcursionSeverity.fromTemperature(-18.0),
+          TemperatureExcursionSeverity.nominal,
+        );
+        expect(
+          TemperatureExcursionSeverity.fromTemperature(-13.5),
+          TemperatureExcursionSeverity.warning,
+        );
+        expect(
+          TemperatureExcursionSeverity.fromTemperature(-7.2),
+          TemperatureExcursionSeverity.critical,
         );
       },
     );
 
-    test('exportAuditCsv produces valid GDP-compliant CSV structure', () async {
-      final csv = await cubit.exportAuditCsv();
+    test('recordReading creates new active excursion when temp > -15.0°C and closes it when temp <= -15.0°C', () async {
+      final start = DateTime(2026, 11, 18, 12, 0);
+      await cubit.recordReading(
+        vehicleId: 'VH-999',
+        vehicleName: 'New Cold Van',
+        routeId: 'RT-999',
+        tempC: -11.5,
+        timestamp: start,
+      );
 
-      expect(csv, contains('excursion_id,vehicle_id,vehicle_name'));
-      expect(csv, contains('EXC-9001,VH-102,Scania R500 Pharma Cold-Chain'));
-      expect(csv, contains('EXCURSION_VIOLATION'));
-      expect(csv, contains('COMPLIANT_TRANSIENT'));
-      expect(cubit.state.exportedCsv, isNotNull);
+      expect(
+        cubit.state.excursions.any(
+          (e) => e.vehicleId == 'VH-999' && e.isActive,
+        ),
+        isTrue,
+      );
+
+      // Temperature normalizes 10 minutes later
+      final end = start.add(const Duration(minutes: 10));
+      await cubit.recordReading(
+        vehicleId: 'VH-999',
+        vehicleName: 'New Cold Van',
+        routeId: 'RT-999',
+        tempC: -18.5,
+        timestamp: end,
+      );
+
+      final closed = cubit.state.excursions.firstWhere(
+        (e) => e.vehicleId == 'VH-999',
+      );
+      expect(closed.isActive, isFalse);
+      expect(closed.durationSeconds, 600);
+      expect(closed.isThresholdBreached, isTrue);
     });
 
-    test('Duration threshold boundary tests: <5 min compliant vs >=5 min violation', () {
-      final transient = TemperatureExcursion(
-        id: 'TEST-1',
-        vehicleId: 'VH-102',
-        vehicleName: 'Reefer Van',
-        driverName: 'Driver',
-        routeId: 'RT-1',
-        startTime: DateTime.now().subtract(const Duration(seconds: 290)),
-        durationSeconds: 290, // 4m 50s (< 300s)
-        maxRecordedTempC: -13.0, // Above -15.0°C
-        severity: TemperatureExcursionSeverity.critical,
-        complianceStatus: 'COMPLIANT_TRANSIENT',
+    test('acknowledgeExcursion updates notes and status in state', () async {
+      await cubit.loadExcursions();
+      await cubit.acknowledgeExcursion(
+        excursionId: 'EXC-001',
+        auditorNotes: 'Thermostat recalibrated and freon pressure checked.',
       );
-      expect(transient.isAuditableBreach, isFalse);
 
-      final breach = TemperatureExcursion(
-        id: 'TEST-2',
-        vehicleId: 'VH-102',
-        vehicleName: 'Reefer Van',
-        driverName: 'Driver',
-        routeId: 'RT-1',
-        startTime: DateTime.now().subtract(const Duration(seconds: 305)),
-        durationSeconds: 305, // 5m 5s (>= 300s)
-        maxRecordedTempC: -14.5, // Above -15.0°C
-        severity: TemperatureExcursionSeverity.critical,
-        complianceStatus: 'EXCURSION_VIOLATION',
+      final updated = cubit.state.excursions.firstWhere(
+        (e) => e.id == 'EXC-001',
       );
-      expect(breach.isAuditableBreach, isTrue);
+      expect(updated.isAcknowledged, isTrue);
+      expect(updated.notes, contains('Thermostat recalibrated'));
+      expect(cubit.state.successMessage, contains('acknowledged'));
+    });
+
+    test(
+      'exportAuditCsv produces RFC 4180 compliant CSV header and data rows',
+      () async {
+        final csv = await cubit.exportAuditCsv();
+
+        expect(
+          csv,
+          contains(
+            'Excursion ID,Vehicle ID,Vehicle Name,Route ID,Peak Temp (°C)',
+          ),
+        );
+        expect(csv, contains('EXC-001,VH-105,"ThermoKing Reefer Express"'));
+        expect(csv, contains('EXC-002,VH-102,"Scania R500 Pharma Cold-Chain"'));
+        expect(cubit.state.exportedCsv, isNotNull);
+      },
+    );
+
+    test('Defensively handles repository exceptions on load', () async {
+      mockRepo.shouldThrow = true;
+      await cubit.loadExcursions();
+
+      expect(cubit.state.status, ColdChainStatus.error);
+      expect(
+        cubit.state.errorMessage,
+        contains('Failed to load cold-chain excursions'),
+      );
     });
   });
 }

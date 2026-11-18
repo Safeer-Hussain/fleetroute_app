@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_feedback.dart';
 import '../../domain/entities/vehicle.dart';
+import '../cold_chain/cold_chain_audit_view.dart';
 import 'bloc/fleet_map_bloc.dart';
 import 'bloc/fleet_map_event.dart';
 import 'bloc/fleet_map_state.dart';
@@ -448,6 +449,42 @@ class _FleetMapCommandViewState extends State<FleetMapCommandView> {
               ),
             ],
           ),
+          if (v.type == 'COLD_CHAIN_VAN') ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: Icon(
+                  Icons.ac_unit,
+                  size: 16,
+                  color: v.cargoTempC > -15.0
+                      ? colorScheme.error
+                      : colorScheme.primary,
+                ),
+                label: Text(
+                  v.cargoTempC > -15.0
+                      ? 'Reefer Excursion Alert - View Audit'
+                      : 'View Cold-Chain Audit Log',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: v.cargoTempC > -15.0
+                        ? colorScheme.error
+                        : colorScheme.primary,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: v.cargoTempC > -15.0
+                        ? colorScheme.error
+                        : colorScheme.primary,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                onPressed: () => ColdChainAuditView.show(context),
+              ),
+            ),
+          ],
         ],
       ),
     );
