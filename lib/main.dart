@@ -16,6 +16,7 @@ import 'presentation/route_optimizer/bloc/route_optimizer_bloc.dart';
 import 'presentation/splash/splash_view.dart';
 import 'presentation/theme/theme_cubit.dart';
 import 'presentation/toll/cubit/toll_estimator_cubit.dart';
+import 'presentation/cold_chain/cubit/cold_chain_cubit.dart';
 
 void main() {
   runZonedGuarded(
@@ -71,6 +72,7 @@ class FleetRouteApp extends StatelessWidget {
         BlocProvider<TollEstimatorCubit>(
           create: (_) => di.sl<TollEstimatorCubit>(),
         ),
+        BlocProvider<ColdChainCubit>(create: (_) => di.sl<ColdChainCubit>()),
       ],
       child: BlocBuilder<ThemeCubit, ThemeMode>(
         builder: (context, themeMode) {

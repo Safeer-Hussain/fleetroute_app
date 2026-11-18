@@ -12,6 +12,7 @@ import '../../domain/repositories/obd_repository.dart';
 import '../../domain/repositories/ai_copilot_repository.dart';
 import '../../domain/repositories/hos_repository.dart';
 import '../../domain/repositories/toll_repository.dart';
+import '../../domain/repositories/cold_chain_repository.dart';
 import '../../data/repositories/fleet_repository_impl.dart';
 import '../../data/repositories/route_repository_impl.dart';
 import '../../data/repositories/epod_repository_impl.dart';
@@ -19,6 +20,7 @@ import '../../data/repositories/obd_repository_impl.dart';
 import '../../data/repositories/ai_copilot_repository_impl.dart';
 import '../../data/repositories/hos_repository_impl.dart';
 import '../../data/repositories/toll_repository_impl.dart';
+import '../../data/repositories/cold_chain_repository_impl.dart';
 import '../../presentation/theme/theme_cubit.dart';
 import '../../presentation/connectivity/connectivity_cubit.dart';
 import '../../presentation/map_command/bloc/fleet_map_bloc.dart';
@@ -28,6 +30,7 @@ import '../../presentation/obd_diagnostics/bloc/obd_diagnostics_bloc.dart';
 import '../../presentation/ai_copilot/cubit/ai_dispatch_cubit.dart';
 import '../../presentation/hos/cubit/driver_hos_cubit.dart';
 import '../../presentation/toll/cubit/toll_estimator_cubit.dart';
+import '../../presentation/cold_chain/cubit/cold_chain_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -77,6 +80,9 @@ Future<void> initDependencies({SharedPreferences? prefOverride}) async {
   sl.registerLazySingleton<TollRepository>(
     () => TollRepositoryImpl(database: sl()),
   );
+  sl.registerLazySingleton<ColdChainRepository>(
+    () => ColdChainRepositoryImpl(database: sl()),
+  );
 
   // Cubits & Blocs
   sl.registerLazySingleton<ThemeCubit>(
@@ -92,4 +98,5 @@ Future<void> initDependencies({SharedPreferences? prefOverride}) async {
   sl.registerFactory(() => AiDispatchCubit(aiRepository: sl()));
   sl.registerFactory(() => DriverHosCubit(hosRepository: sl()));
   sl.registerFactory(() => TollEstimatorCubit(tollRepository: sl()));
+  sl.registerFactory(() => ColdChainCubit(coldChainRepository: sl()));
 }

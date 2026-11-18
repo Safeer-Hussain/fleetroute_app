@@ -42,6 +42,7 @@ class AppDatabase {
       onOpen: (db) async {
         await _ensureHosTables(db);
         await _ensureTollTables(db);
+        await _ensureColdChainTables(db);
       },
     );
   }
@@ -218,6 +219,103 @@ class AppDatabase {
     }
   }
 
+  Future<void> _ensureColdChainTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS temperature_excursions (
+        id TEXT PRIMARY KEY,
+        vehicle_id TEXT NOT NULL,
+        vehicle_name TEXT NOT NULL,
+        driver_name TEXT NOT NULL,
+        route_id TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT,
+        duration_seconds INTEGER NOT NULL,
+        max_recorded_temp_c REAL NOT NULL,
+        target_temp_c REAL NOT NULL,
+        threshold_temp_c REAL NOT NULL,
+        severity TEXT NOT NULL,
+        is_resolved INTEGER NOT NULL,
+        resolution_notes TEXT,
+        acknowledged_by TEXT,
+        compliance_status TEXT NOT NULL
+      )
+    ''');
+
+    await _seedColdChainData(db);
+  }
+
+  Future<void> _seedColdChainData(Database db) async {
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM temperature_excursions'),
+    );
+    if (count == null || count == 0) {
+      final initialExcursions = [
+        {
+          'id': 'EXC-9001',
+          'vehicle_id': 'VH-102',
+          'vehicle_name': 'Scania R500 Pharma Cold-Chain',
+          'driver_name': 'Rashid Qureshi',
+          'route_id': 'RT-202',
+          'start_time': '2026-11-17T09:15:00.000',
+          'end_time': '2026-11-17T09:22:00.000',
+          'duration_seconds': 420,
+          'max_recorded_temp_c': -12.8,
+          'target_temp_c': -20.0,
+          'threshold_temp_c': -15.0,
+          'severity': 'CRITICAL',
+          'is_resolved': 1,
+          'resolution_notes': 'Reefer compressor thermal cycle recovery during Thokar Depot loading dock transfer.',
+          'acknowledged_by': 'QA Lead Dr. Ayesha',
+          'compliance_status': 'EXCURSION_VIOLATION',
+        },
+        {
+          'id': 'EXC-9002',
+          'vehicle_id': 'VH-102',
+          'vehicle_name': 'Scania R500 Pharma Cold-Chain',
+          'driver_name': 'Rashid Qureshi',
+          'route_id': 'RT-202',
+          'start_time': '2026-11-18T08:30:00.000',
+          'end_time': null,
+          'duration_seconds': 360,
+          'max_recorded_temp_c': -14.2,
+          'target_temp_c': -20.0,
+          'threshold_temp_c': -15.0,
+          'severity': 'CRITICAL',
+          'is_resolved': 0,
+          'resolution_notes': null,
+          'acknowledged_by': null,
+          'compliance_status': 'EXCURSION_VIOLATION',
+        },
+        {
+          'id': 'EXC-9003',
+          'vehicle_id': 'VH-110',
+          'vehicle_name': 'Carrier Transicold Transit Van',
+          'driver_name': 'Asif Javed',
+          'route_id': 'RT-210',
+          'start_time': '2026-11-18T10:05:00.000',
+          'end_time': '2026-11-18T10:08:00.000',
+          'duration_seconds': 180,
+          'max_recorded_temp_c': -16.5,
+          'target_temp_c': -20.0,
+          'threshold_temp_c': -15.0,
+          'severity': 'WARNING',
+          'is_resolved': 1,
+          'resolution_notes': 'Transient cold-curtain door open event during Gulberg Distribution Hub parcel unload.',
+          'acknowledged_by': 'Station Supervisor Farooq',
+          'compliance_status': 'COMPLIANT_TRANSIENT',
+        },
+      ];
+
+      for (final exc in initialExcursions) {
+        await db.insert(
+          'temperature_excursions',
+          exc,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
+  }
+
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE vehicles (
@@ -309,6 +407,7 @@ class AppDatabase {
 
     await _ensureHosTables(db);
     await _ensureTollTables(db);
+    await _ensureColdChainTables(db);
     await seedInitialData(db);
   }
 

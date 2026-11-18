@@ -10,6 +10,7 @@ import '../obd_diagnostics/obd_diagnostics_view.dart';
 import '../route_optimizer/route_optimizer_view.dart';
 import '../settings/settings_view.dart';
 import '../hos/driver_hos_view.dart';
+import '../cold_chain/cold_chain_audit_view.dart';
 
 class AdaptiveScaffold extends StatefulWidget {
   const AdaptiveScaffold({super.key});
@@ -85,6 +86,15 @@ class _AdaptiveScaffoldState extends State<AdaptiveScaffold> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const DriverHosView()),
+                );
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.ac_unit, size: isLandscape ? 18 : 20),
+              tooltip: 'Cold-Chain QA Excursion Audit',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ColdChainAuditView()),
                 );
               },
             ),
