@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -43,6 +44,7 @@ class AppDatabase {
         await _ensureHosTables(db);
         await _ensureTollTables(db);
         await _ensureColdChainTables(db);
+        await _ensureFuelStationTables(db);
       },
     );
   }
@@ -300,6 +302,154 @@ class AppDatabase {
     }
   }
 
+  Future<void> _ensureFuelStationTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS fuel_stations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        highway TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        brand TEXT NOT NULL,
+        diesel_price REAL NOT NULL,
+        baseline_price REAL NOT NULL,
+        amenities TEXT NOT NULL,
+        has_truck_bays INTEGER NOT NULL
+      )
+    ''');
+
+    await _seedFuelStationData(db);
+  }
+
+  Future<void> _seedFuelStationData(Database db) async {
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM fuel_stations'),
+    );
+    if (count == null || count == 0) {
+      final initialStations = [
+        {
+          'id': 'FS-001',
+          'name': 'Taj Gasoline Highway Express Depot',
+          'highway': 'Multan Road Km 28',
+          'latitude': 31.3650,
+          'longitude': 74.2180,
+          'brand': 'Taj Gasoline',
+          'diesel_price': 261.20,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode([
+            'HIGH_SPEED_PUMPS',
+            'TRUCK_PARKING',
+            'DRIVER_LOUNGE',
+            '24_7_CANTEEN',
+            'DEF_FLUID_DISPENSER',
+          ]),
+          'has_truck_bays': 1,
+        },
+        {
+          'id': 'FS-002',
+          'name': 'PSO Platinum Commercial Fleet Stop',
+          'highway': 'M-2 Motorway Km 22',
+          'latitude': 31.5450,
+          'longitude': 74.2250,
+          'brand': 'PSO',
+          'diesel_price': 264.50,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode([
+            'HIGH_SPEED_PUMPS',
+            'TRUCK_PARKING',
+            'TIRE_SERVICE',
+            'CANTEEN',
+          ]),
+          'has_truck_bays': 1,
+        },
+        {
+          'id': 'FS-003',
+          'name': 'Shell Commercial Fleet Hub',
+          'highway': 'Grand Trunk Road (N-5) Km 16',
+          'latitude': 31.6850,
+          'longitude': 74.2950,
+          'brand': 'Shell Express',
+          'diesel_price': 268.00,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode([
+            'HIGH_SPEED_PUMPS',
+            'TRUCK_PARKING',
+            'LUBRICANT_EXCHANGE',
+          ]),
+          'has_truck_bays': 1,
+        },
+        {
+          'id': 'FS-004',
+          'name': 'Total Parco Expressway Freight Oasis',
+          'highway': 'Lahore Ring Road Southern Loop',
+          'latitude': 31.4350,
+          'longitude': 74.2580,
+          'brand': 'Total Parco',
+          'diesel_price': 263.80,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode([
+            'HIGH_SPEED_PUMPS',
+            'TRUCK_PARKING',
+            'DRIVER_CAFE',
+          ]),
+          'has_truck_bays': 1,
+        },
+        {
+          'id': 'FS-005',
+          'name': 'Attock Petroleum Heavy Truck Depot',
+          'highway': 'Sundar-Raiwind Industrial Corridor Km 14',
+          'latitude': 31.3120,
+          'longitude': 74.1950,
+          'brand': 'Attock Petroleum',
+          'diesel_price': 262.50,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode([
+            'HIGH_SPEED_PUMPS',
+            'OVERNIGHT_PARKING',
+            'TIRE_GAUGE_CALIBRATOR',
+          ]),
+          'has_truck_bays': 1,
+        },
+        {
+          'id': 'FS-006',
+          'name': 'Byco Petroleum Commercial Bunkering',
+          'highway': 'Sheikhupura Road M-3 Connector',
+          'latitude': 31.7200,
+          'longitude': 73.9950,
+          'brand': 'Byco Bunkering',
+          'diesel_price': 265.90,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode([
+            'HIGH_SPEED_PUMPS',
+            'TRUCK_SCALES',
+            'DRIVER_RESTROOMS',
+          ]),
+          'has_truck_bays': 0,
+        },
+        {
+          'id': 'FS-007',
+          'name': 'Hascol Express Corridor Fuel Terminal',
+          'highway': 'Ferozepur Road Km 31',
+          'latitude': 31.3500,
+          'longitude': 74.3800,
+          'brand': 'Hascol Express',
+          'diesel_price': 270.00,
+          'baseline_price': 278.00,
+          'amenities': jsonEncode(['HIGH_SPEED_PUMPS', 'TRUCK_PARKING']),
+          'has_truck_bays': 1,
+        },
+      ];
+
+      for (final st in initialStations) {
+        await db.insert(
+          'fuel_stations',
+          st,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
+  }
+
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE vehicles (
@@ -392,6 +542,7 @@ class AppDatabase {
     await _ensureHosTables(db);
     await _ensureTollTables(db);
     await _ensureColdChainTables(db);
+    await _ensureFuelStationTables(db);
     await seedInitialData(db);
   }
 

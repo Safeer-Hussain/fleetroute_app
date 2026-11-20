@@ -7,6 +7,9 @@ import '../../domain/entities/waybill_stop.dart';
 import '../toll/cubit/toll_estimator_cubit.dart';
 import '../toll/cubit/toll_estimator_state.dart';
 import '../toll/toll_breakdown_sheet.dart';
+import '../fuel_finder/cubit/fuel_finder_cubit.dart';
+import '../fuel_finder/cubit/fuel_finder_state.dart';
+import '../fuel_finder/fuel_finder_sheet.dart';
 import 'bloc/route_optimizer_bloc.dart';
 import 'bloc/route_optimizer_event.dart';
 import 'bloc/route_optimizer_state.dart';
@@ -67,6 +70,10 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
             route: state.selectedRoute!,
             stops: state.stops,
           );
+          context.read<FuelFinderCubit>().calculateRecommendation(
+            route: state.selectedRoute!,
+            stops: state.stops,
+          );
         }
       },
       builder: (context, state) {
@@ -111,6 +118,13 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
                               ),
                               const SizedBox(height: 12),
                               _buildTollSummaryCard(
+                                context,
+                                selected,
+                                state,
+                                colorScheme,
+                              ),
+                              const SizedBox(height: 12),
+                              _buildFuelFinderSummaryCard(
                                 context,
                                 selected,
                                 state,
@@ -162,6 +176,13 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
                         ),
                         const SizedBox(height: 12),
                         _buildTollSummaryCard(
+                          context,
+                          selected,
+                          state,
+                          colorScheme,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildFuelFinderSummaryCard(
                           context,
                           selected,
                           state,
@@ -525,6 +546,204 @@ class _RouteOptimizerViewState extends State<RouteOptimizerView> {
                   ),
                 ),
               ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFuelFinderSummaryCard(
+    BuildContext context,
+    RoutePlan route,
+    RouteOptimizerState state,
+    ColorScheme colorScheme,
+  ) {
+    return BlocBuilder<FuelFinderCubit, FuelFinderState>(
+      builder: (context, fuelState) {
+        if (fuelState.status == FuelFinderStatus.initial) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              context.read<FuelFinderCubit>().calculateRecommendation(
+                route: route,
+                stops: state.stops,
+              );
+            }
+          });
+        }
+
+        final rec = fuelState.recommendation;
+        final bestStation = rec?.recommendedStation;
+        final count = rec?.corridorStations.length ?? 0;
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.local_gas_station,
+                        color: colorScheme.primary,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Corridor Fuel & Price Optimization',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$count Stations',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (bestStation != null) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            bestStation.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${bestStation.brand} · ${bestStation.distanceToCorridorKm.toStringAsFixed(1)} km detour',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Rs. ${bestStation.dieselPricePerLiter.toStringAsFixed(2)}/L',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          'Save Rs. ${bestStation.priceSavingsPerLiter.toStringAsFixed(2)}/L',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Estimated Fuel Savings (${fuelState.refuelLiters.toStringAsFixed(0)}L):',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        'Rs. ${(rec?.totalEstimatedSavings ?? 0.0).toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    'No corridor fuel depots within detour tolerance.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.explore, size: 15),
+                  label: const Text(
+                    'View Corridor Stations & Inject Waypoint',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colorScheme.primary,
+                    side: BorderSide(color: colorScheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onPressed: () {
+                    FuelFinderSheet.show(
+                      context: context,
+                      route: route,
+                      stops: state.stops,
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         );

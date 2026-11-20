@@ -21,10 +21,10 @@ Execute using the 6-phase autonomous sprint rule:
   - *Acceptance Criteria*: SQLite audit table `temperature_excursions`, duration tracking, CSV/PDF formatted export sheet.
   - *Test Matrix*: Excursion detection logic tests, duration threshold boundary tests, export serialization tests. (Passed 8 unit tests + 4 widget tests).
 
-- [ ] **Sprint 4: Fuel Station Lowest-Price Dynamic Route Finder**
+- [x] **Sprint 4: Fuel Station Lowest-Price Dynamic Route Finder**
   - *User Story*: As a fleet operator, I want the route optimizer to suggest refueling stops at highway fuel depots with the lowest verified diesel price along the corridor.
   - *Acceptance Criteria*: Corridor fuel station nodes mapped, price delta calculation, 1-tap route waypoint injection.
-  - *Test Matrix*: Nearest corridor station search algorithm tests, fuel cost saving delta assertions.
+  - *Test Matrix*: Nearest corridor station search algorithm tests, fuel cost saving delta assertions. (Passed 8 unit tests + 4 widget tests; 63 total tests passed cleanly).
 
 - [ ] **Sprint 5: Multi-Depot Fleet Load Balancing Calculator**
   - *User Story*: As an enterprise logistics director, I need an automated load-balancing calculator that redistributes idle trucks from oversaturated depots to high-demand terminals.

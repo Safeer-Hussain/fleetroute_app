@@ -5,6 +5,18 @@ All notable changes to the FleetRoute platform will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2+3] - 2026-11-21
+
+### Added
+- **Fuel Station Lowest-Price Dynamic Route Finder (Sprint 4)**:
+  - SQLite persistence table `fuel_stations` seeded with 7 verified commercial highway fuel depots along major freight corridors (M-2 Motorway, Grand Trunk Road N-5, Multan Road, Ring Road, Sundar-Raiwind Corridor).
+  - Spatial corridor matching engine calculating perpendicular detour distance and distance along route using Haversine projection algorithms.
+  - Dynamic fuel cost savings engine comparing station prices against regional market baseline (Rs. 278.00/L), calculating price deltas and total savings scaled across planned bunkering volumes (150L - 450L).
+  - 1-tap route waypoint injection (`injectFuelStopWaypoint`) seamlessly inserting refueling stops into active `waybill_stops` manifests in SQLite and updating stop sequences.
+  - Interactive `FuelFinderSheet` modal bottom sheet featuring recommended station hero card, volume and corridor tolerance filters, mapped depot cards with amenities tags, and landscape 360dp height viewport safety.
+  - Integrated `RouteOptimizerView` summary card displaying lowest price depot recommendations, price delta badges, and instant sheet triggers.
+  - Comprehensive test suite: 8 unit tests in `test/unit/fuel_finder_cubit_test.dart` and 4 widget tests in `test/widget/fuel_finder_widget_test.dart` (63 total repository tests passing cleanly).
+
 ## [1.0.1+2] - 2026-11-18
 
 ### Added

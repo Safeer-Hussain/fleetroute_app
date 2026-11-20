@@ -2,7 +2,7 @@ name: fleetroute_app
 description: "FleetRoute - Enterprise Autonomous Fleet Telematics, Multi-Stop Route Optimization, Native OBD-II Diagnostics, ePOD & AI Dispatch Copilot."
 publish_to: 'none'
 
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.13.7
